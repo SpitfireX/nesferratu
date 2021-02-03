@@ -1,0 +1,16 @@
+implied	(ind, x)				zp	zp		implied	imm	accum			abs	abs
+relative	(ind), y				zp, x	zp, x		implied	abs, y				abs, x	abs, x
+abs	(ind, x)			zp	zp	zp		implied	imm	accum		abs	abs	abs
+relative	(ind), y				zp, x	zp, x		implied	abs, y				abs, x	abs, x
+implied	(ind, x)				zp	zp		implied	imm	accum		abs	abs	abs
+relative	(ind), y				zp, x	zp, x		implied	abs, y				abs, x	abs, x
+implied	(ind, x)				zp	zp		implied	imm	accum		indirect	abs	abs
+relative	(ind), y				zp, x	zp, x		implied	abs, y				abs, x	abs, x
+	(ind, x)			zp	zp	zp		implied		implied		abs	abs	abs
+relative	(ind), y			zp, x	zp, x	zp, y		implied	abs, y	implied			abs, x	
+imm	(ind, x)	imm		zp	zp	zp		implied	imm	implied		abs	abs	abs
+relative	(ind), y			zp, x	zp, x	zp, y		implied	abs, y	implied		abs, x	abs, x	abs, y
+imm	(ind, x)			zp	zp	zp		implied	imm	implied		abs	abs	abs
+relative	(ind), y				zp, x	zp, x		implied	abs, y				abs, x	abs, x
+imm	(ind, x)			zp	zp	zp		implied	imm	implied		abs	abs	abs
+relative	(ind), y				zp, x	zp, x		implied	abs, y				abs, x	abs, x
