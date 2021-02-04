@@ -40,6 +40,12 @@ impl Bus {
                 self.fetch = None;
             }
         }
+
+        println!("Zero Page:");
+        self.memory.prettyprint(0x0000, 0x100);
+
+        println!("Program:");
+        self.memory.prettyprint(0x1337, 0x20);
     }
 
     fn read(&self, addr: u16) -> Option<u8> {
@@ -64,7 +70,7 @@ struct Memory {
 impl Memory {
     fn new() -> Memory {
         let mut new = Memory{
-            ram: [0x00; 64*1024] // 0xa9 = LDA_imm opcode
+            ram: [0x00; 64*1024]
         };
 
         // reset vector
@@ -72,10 +78,50 @@ impl Memory {
         new.write(0xFFFD, 0x13);
 
         // program at 0x1337
-        new.write(0x1337, 0xA9);
-        new.write(0x1338, 0xFF);
+        new.write(0x1337, 0xA9); // 0xa9 = LDA_imm opcode
+        new.write(0x1338, 0xFF); // imm = 0xFF
+
+        new.write(0xFFFF, 0xAE);
 
         new
+    }
+}
+
+impl Memory {
+    fn prettyprint(&self, addr: u16, len: usize) {
+        let len = if len > self.ram.len() - addr as usize {
+            self.ram.len() - addr as usize
+        } else {
+            len
+        };
+
+        println!("┌──────┬─────────────────────────────────────────────────┐");
+        println!("│ RAM  │ 00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F │");
+        println!("├──────┼─────────────────────────────────────────────────┤");
+        let mut col = 0;
+
+        for (i, b) in self.ram[addr as usize .. addr as usize + len].iter().enumerate() {
+            if i % 0x10 == 0 {
+                print!("│ {:04X} │ ", addr as usize + i);
+            }
+            
+            print!("{:02X} ", b);
+
+            col = i & 0xF;
+            if col == 0xF {
+                println!("│");
+            }
+        }
+
+        if col < 0xF {
+            while col < 0xF {
+                print!("   ");
+                col += 1;
+            }
+            println!("│");
+        }
+
+        println!("└──────┴─────────────────────────────────────────────────┘");
     }
 }
 
