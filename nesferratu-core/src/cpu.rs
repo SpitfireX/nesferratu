@@ -1,3 +1,6 @@
+use std::convert::TryFrom;
+
+use num_traits::FromPrimitive;
 
 pub trait CPU {
     fn clock(&mut self, data: Option<u8>) -> BusMessage;
@@ -17,6 +20,7 @@ pub enum BusMessage {
 
 #[allow(non_camel_case_types)]
 #[repr(u8)]
+#[derive(Debug, FromPrimitive)]
 pub enum Opcodes {
     BRK_imp = 0x00,
     ORA_ind_x = 0x01,
@@ -252,8 +256,10 @@ impl CPUInterpreter {
     }
 
     fn decode_opcode(&mut self, opcode: u8) -> ((u8, OpDelegate), (u8, OpDelegate)) {
+        let opcode: Opcodes = Opcodes::from_u8(opcode).expect("Unknown opcode");
         match opcode {
-            _ => panic!("Unknown opcode 0x{:02X}", opcode)
+            Opcodes::LDA_imm => ((1, Addressing::immediate), (1, Ops::lda)),
+            _ => panic!("Unimplemented opcode {:?}", opcode)
         }
     }
 }
@@ -345,14 +351,27 @@ impl CPU for CPUInterpreter {
 }
 
 mod Addressing {
+    use super::{BusMessage, CPUFlags, CPURegisters};
+    use super::BusMessage::*;
 
+    pub fn immediate(regs: &mut CPURegisters, data: Option<u8>, cycle: u8) -> BusMessage {
+        regs.pc += 1;
+        Read{addr: regs.pc}
+    }
 }
 
 mod Ops {
     use super::{BusMessage, CPUFlags, CPURegisters};
     use super::BusMessage::*;
 
-    pub fn reset(regs: &mut CPURegisters, data: Option<u8>, cycle: u8) -> BusMessage{
+    pub fn lda(regs: &mut CPURegisters, data: Option<u8>, cycle: u8) -> BusMessage {
+        regs.a = data.expect("Empty data");
+        
+        regs.pc += 1;
+        Read{addr: regs.pc}
+    }
+
+    pub fn reset(regs: &mut CPURegisters, data: Option<u8>, cycle: u8) -> BusMessage {
         let reset_addr: u16 = 0xFFFC;
         
         match cycle {

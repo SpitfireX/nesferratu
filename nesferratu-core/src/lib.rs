@@ -1,5 +1,8 @@
 #![feature(destructuring_assignment)]
 
+#[macro_use]
+extern crate num_derive;
+
 use cpu::{BusMessage, CPU, CPUInterpreter};
 
 pub mod cpu;
