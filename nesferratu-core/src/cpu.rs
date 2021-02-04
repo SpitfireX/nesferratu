@@ -189,7 +189,7 @@ enum CPUFlags {
 
 #[derive(Debug)]
 enum CPUState {
-    Decode,
+    FetchDecode,
     Fetch,
     Execute,
     Halt,
@@ -278,25 +278,27 @@ impl CPU for CPUInterpreter {
             println!("\tbus data 0x{:02X}", data);
         }
 
+        if let FetchDecode = self.state {
+            let decoded = self.decode_opcode(data.expect("No Opcode to decode"));
+            self.fetch_cycles = decoded.0.0;
+            self.fetch_op = Some(decoded.0.1);
+            self.exec_cycles = decoded.1.0;
+            self.exec_op = Some(decoded.1.1);
+
+            self.registers.pc += 1;
+
+            if self.fetch_op.is_some() {
+                self.state = Fetch;
+            } else if self.exec_op.is_some() {
+                self.state = Execute;
+            } else {
+                panic!("No valid CPU state to switch to");
+            }
+        }
+
         match self.state {
-            Decode => {
-                let decoded = self.decode_opcode(data.expect("No Opcode to decode"));
-                self.fetch_cycles = decoded.0.0;
-                self.fetch_op = Some(decoded.0.1);
-                self.exec_cycles = decoded.1.0;
-                self.exec_op = Some(decoded.1.1);
-
-                self.registers.pc += 1;
-
-                if self.fetch_op.is_some() {
-                    self.state = Fetch;
-                } else if self.exec_op.is_some() {
-                    self.state = Execute;
-                } else {
-                    panic!("No valid CPU state to switch to");
-                }
-
-                Read{addr: self.registers.pc}
+            FetchDecode => {
+                panic!("CPU shouldn't be in decode state anymore")
             }
             Fetch => {
                 let op = self.fetch_op.expect("CPU in fetch state without op");
@@ -316,7 +318,7 @@ impl CPU for CPUInterpreter {
                 let msg = op(&mut self.registers, data, self.op_cycle);
                 
                 if self.op_cycle >= self.exec_cycles { // execution is done
-                    self.state = Decode;
+                    self.state = FetchDecode;
                     self.op_cycle = 1;
                 } else {
                     self.op_cycle += 1;
