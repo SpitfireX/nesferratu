@@ -63,9 +63,19 @@ struct Memory {
 
 impl Memory {
     fn new() -> Memory {
-        Memory{
-            ram: [0xa9; 64*1024] // 0xa9 = LDA_imm opcode
-        }
+        let mut new = Memory{
+            ram: [0x00; 64*1024] // 0xa9 = LDA_imm opcode
+        };
+
+        // reset vector
+        new.write(0xFFFC, 0x37);
+        new.write(0xFFFD, 0x13);
+
+        // program at 0x1337
+        new.write(0x1337, 0xA9);
+        new.write(0x1338, 0xFF);
+
+        new
     }
 }
 

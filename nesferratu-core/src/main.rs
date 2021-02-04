@@ -8,6 +8,7 @@ fn main() {
         bus.clock();
         
         let mut input = String::new();
-        io::stdin().read_line(&mut input);
+        println!();
+        // io::stdin().read_line(&mut input);
     }
 }

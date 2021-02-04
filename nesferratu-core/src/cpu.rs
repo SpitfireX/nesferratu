@@ -173,7 +173,6 @@ pub enum Opcodes {
     SBC_abs_y = 0xf9,
     SBC_abs_x = 0xfd,
     INC_abs_x = 0xfe,
-    XXX,
 }
 
 #[repr(u8)]
@@ -255,11 +254,11 @@ impl CPUInterpreter {
         println!("{:02X?}", self.registers);
     }
 
-    fn decode_opcode(&mut self, opcode: u8) -> ((u8, OpDelegate), (u8, OpDelegate)) {
-        let opcode: Opcodes = Opcodes::from_u8(opcode).expect("Unknown opcode");
-        match opcode {
+    fn decode_opcode(&self, opcode: u8) -> ((u8, OpDelegate), (u8, OpDelegate)) {
+        let mnemonic: Opcodes = Opcodes::from_u8(opcode).expect("Invalid opcode");
+        match mnemonic {
             Opcodes::LDA_imm => ((1, Addressing::immediate), (1, Ops::lda)),
-            _ => panic!("Unimplemented opcode {:?}", opcode)
+            _ => panic!("Unimplemented opcode 0x{:02X} = {:?}", opcode, mnemonic)
         }
     }
 }
@@ -285,8 +284,6 @@ impl CPU for CPUInterpreter {
             self.exec_cycles = decoded.1.0;
             self.exec_op = Some(decoded.1.1);
 
-            self.registers.pc += 1;
-
             if self.fetch_op.is_some() {
                 self.state = Fetch;
             } else if self.exec_op.is_some() {
@@ -294,6 +291,8 @@ impl CPU for CPUInterpreter {
             } else {
                 panic!("No valid CPU state to switch to");
             }
+
+            self.registers.pc += 1;
         }
 
         match self.state {
@@ -307,8 +306,10 @@ impl CPU for CPUInterpreter {
                 if self.op_cycle >= self.fetch_cycles { // fetch is done
                     self.state = Execute;
                     self.op_cycle = 1;
+                    return Read{addr: self.registers.pc};
                 } else {
                     self.op_cycle += 1;
+                    return msg;
                 }
 
                 msg
@@ -316,15 +317,15 @@ impl CPU for CPUInterpreter {
             Execute => {
                 let op = self.exec_op.expect("CPU in execute state without op");
                 let msg = op(&mut self.registers, data, self.op_cycle);
-                
+
                 if self.op_cycle >= self.exec_cycles { // execution is done
                     self.state = FetchDecode;
                     self.op_cycle = 1;
+                    return Read{addr: self.registers.pc};
                 } else {
                     self.op_cycle += 1;
+                    return msg;
                 }
-
-                msg
             }
             Halt => {
                 println!("CPU is halted");
@@ -342,6 +343,7 @@ impl CPU for CPUInterpreter {
     }
 
     fn reset(&mut self) {
+        println!("CPU reset");
         self.total_cycles = 0;
         self.op_cycle = 1;
         self.state = CPUState::Execute;
@@ -357,7 +359,7 @@ mod Addressing {
     use super::BusMessage::*;
 
     pub fn immediate(regs: &mut CPURegisters, data: Option<u8>, cycle: u8) -> BusMessage {
-        regs.pc += 1;
+        regs.pc += 1; // PC at next instruction
         Read{addr: regs.pc}
     }
 }
@@ -368,9 +370,7 @@ mod Ops {
 
     pub fn lda(regs: &mut CPURegisters, data: Option<u8>, cycle: u8) -> BusMessage {
         regs.a = data.expect("Empty data");
-        
-        regs.pc += 1;
-        Read{addr: regs.pc}
+        Nop
     }
 
     pub fn reset(regs: &mut CPURegisters, data: Option<u8>, cycle: u8) -> BusMessage {
@@ -394,7 +394,6 @@ mod Ops {
                 
                 Nop
             },
-            8 => Read{addr: regs.pc},
             _ => Nop,
         }
     }
