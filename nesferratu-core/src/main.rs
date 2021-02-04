@@ -1,4 +1,3 @@
-#![feature(generators, generator_trait)]
 use nesferratu_core::{Bus};
 
 use std::io;

@@ -1,4 +1,4 @@
-#![feature(generators, generator_trait)]
+#![feature(destructuring_assignment)]
 
 use cpu::{BusMessage, CPU, CPUInterpreter};
 
@@ -13,11 +13,13 @@ pub struct Bus {
 impl Bus {
 
     pub fn new() -> Bus {
-        Bus {
+        let mut temp = Bus {
             fetch: None,
             cpu: CPUInterpreter::new(),
             memory: Memory::new(),
-        }
+        };
+        temp.cpu.reset();
+        temp
     }
 
     pub fn clock(&mut self) {
@@ -59,7 +61,7 @@ struct Memory {
 impl Memory {
     fn new() -> Memory {
         Memory{
-            ram: [0; 64*1024]
+            ram: [0xa9; 64*1024] // 0xa9 = LDA_imm opcode
         }
     }
 }

@@ -15,6 +15,7 @@ pub enum BusMessage {
     Nop,
 }
 
+#[allow(non_camel_case_types)]
 #[repr(u8)]
 pub enum Opcodes {
     BRK_imp = 0x00,
@@ -168,6 +169,7 @@ pub enum Opcodes {
     SBC_abs_y = 0xf9,
     SBC_abs_x = 0xfd,
     INC_abs_x = 0xfe,
+    XXX,
 }
 
 #[repr(u8)]
@@ -181,35 +183,25 @@ enum CPUFlags {
     N = (1 << 7),   // Negative
 }
 
-pub struct CPUInterpreter {
-    // CPU internals
+#[derive(Debug)]
+enum CPUState {
+    Decode,
+    Fetch,
+    Execute,
+    Halt,
+}
+
+#[derive(Default, Debug)]
+pub struct CPURegisters {
     a: u8,      // Accumulator
     x: u8,      // X Register
     y: u8,      // Y Register
     sp: u8,     // Stack Pointer
     pc: u16,    // Program Counter
     status: u8, // Status Register
-
-    // helper variables
-    total_cycles: i32,
 }
 
-impl CPUInterpreter {
-    pub fn new() -> CPUInterpreter {
-        CPUInterpreter {
-            a: 0x00,
-            x: 0x00,
-            y: 0x00,
-            sp: 0x00,
-            pc: 0x0000,
-            status: 0x00,
-
-            total_cycles: 0,
-        }
-    }
-}
-
-impl CPUInterpreter {
+impl CPURegisters {
     fn get_flag(&self, flag: CPUFlags) -> bool {
         (self.status & (flag as u8)) > 0
     }
@@ -223,17 +215,114 @@ impl CPUInterpreter {
     }
 }
 
+type OpDelegate = fn(&mut CPURegisters, Option<u8>, u8) -> BusMessage;
+
+pub struct CPUInterpreter {
+    // CPU internals
+    registers: CPURegisters,
+
+    // helper variables
+    total_cycles: u32,
+    op_cycle: u8,
+    state: CPUState,
+    fetch_op: Option<OpDelegate>,
+    fetch_cycles: u8,
+    exec_op: Option<OpDelegate>,
+    exec_cycles: u8,
+}
+
+impl CPUInterpreter {
+    pub fn new() -> CPUInterpreter {
+        CPUInterpreter {
+            registers: CPURegisters::default(),
+
+            total_cycles: 0,
+            op_cycle: 0,
+            state: CPUState::Halt,
+            fetch_op: None,
+            fetch_cycles: 0,
+            exec_op: None,
+            exec_cycles: 0,
+        }
+    }
+
+    fn print_debug(&self) {
+        println!("cycle: {}, op_cycle: {}, state: {:?}", self.total_cycles, self.op_cycle, self.state);
+        println!("{:02X?}", self.registers);
+    }
+
+    fn decode_opcode(&mut self, opcode: u8) -> ((u8, OpDelegate), (u8, OpDelegate)) {
+        match opcode {
+            _ => panic!("Unknown opcode 0x{:02X}", opcode)
+        }
+    }
+}
 
 impl CPU for CPUInterpreter {
+
     fn clock(&mut self, data: Option<u8>) -> BusMessage {
+
+        use CPUState::*;
+        use BusMessage::*;
+
         self.total_cycles += 1;
-        println!("received CPU clock #{}", self.total_cycles);
+        self.print_debug();
 
         if let Some(data) = data {
-            println!("\twith data 0x{:02X}", data);
+            println!("\tbus data 0x{:02X}", data);
         }
 
-        BusMessage::Read{addr: 0xffff}
+        match self.state {
+            Decode => {
+                let decoded = self.decode_opcode(data.expect("No Opcode to decode"));
+                self.fetch_cycles = decoded.0.0;
+                self.fetch_op = Some(decoded.0.1);
+                self.exec_cycles = decoded.1.0;
+                self.exec_op = Some(decoded.1.1);
+
+                self.registers.pc += 1;
+
+                if self.fetch_op.is_some() {
+                    self.state = Fetch;
+                } else if self.exec_op.is_some() {
+                    self.state = Execute;
+                } else {
+                    panic!("No valid CPU state to switch to");
+                }
+
+                Read{addr: self.registers.pc}
+            }
+            Fetch => {
+                let op = self.fetch_op.expect("CPU in fetch state without op");
+                let msg = op(&mut self.registers, data, self.op_cycle);
+
+                if self.op_cycle >= self.fetch_cycles { // fetch is done
+                    self.state = Execute;
+                    self.op_cycle = 1;
+                } else {
+                    self.op_cycle += 1;
+                }
+
+                msg
+            }
+            Execute => {
+                let op = self.exec_op.expect("CPU in execute state without op");
+                let msg = op(&mut self.registers, data, self.op_cycle);
+                
+                if self.op_cycle >= self.exec_cycles { // execution is done
+                    self.state = Decode;
+                    self.op_cycle = 1;
+                } else {
+                    self.op_cycle += 1;
+                }
+
+                msg
+            }
+            Halt => {
+                println!("CPU is halted");
+                Nop
+            }
+        }
     }
 
     fn irq(&mut self) {
@@ -244,7 +333,48 @@ impl CPU for CPUInterpreter {
         todo!()
     }
 
-    fn reset(&mut self, ) {
+    fn reset(&mut self) {
+        self.total_cycles = 0;
+        self.op_cycle = 1;
+        self.state = CPUState::Execute;
+        self.fetch_op = None;
+        self.fetch_cycles = 0;
+        self.exec_op = Some(Ops::reset);
+        self.exec_cycles = 8;
+    }
+}
 
+mod Addressing {
+
+}
+
+mod Ops {
+    use super::{BusMessage, CPUFlags, CPURegisters};
+    use super::BusMessage::*;
+
+    pub fn reset(regs: &mut CPURegisters, data: Option<u8>, cycle: u8) -> BusMessage{
+        let reset_addr: u16 = 0xFFFC;
+        
+        match cycle {
+            1 => Read{addr: reset_addr},
+            2 => {
+                regs.pc |= data.expect("Empty data") as u16; // set low byte of new PC addresss
+                Read{addr: reset_addr+1}
+            },
+            3 => {
+                regs.pc |= (data.expect("Empty data") as u16) << 8; // set high byte of the new PC address
+                
+                // reset rest of the registers
+                regs.a = 0x00;
+                regs.x = 0x00;
+                regs.y = 0x00;
+                regs.sp = 0xFD; // default address for stack pointer
+                regs.status = 0x00;
+                
+                Nop
+            },
+            8 => Read{addr: regs.pc},
+            _ => Nop,
+        }
     }
 }
