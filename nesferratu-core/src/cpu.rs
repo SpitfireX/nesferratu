@@ -1,5 +1,3 @@
-use std::convert::TryFrom;
-
 use num_traits::FromPrimitive;
 
 pub trait CPU {
@@ -257,7 +255,7 @@ impl CPUInterpreter {
     fn decode_opcode(&self, opcode: u8) -> ((u8, OpDelegate), (u8, OpDelegate)) {
         let mnemonic: Opcodes = Opcodes::from_u8(opcode).expect("Invalid opcode");
         match mnemonic {
-            Opcodes::LDA_imm => ((1, Addressing::immediate), (1, Ops::lda)),
+            Opcodes::LDA_imm => ((1, addressing::immediate), (1, ops::lda)),
             _ => panic!("Unimplemented opcode 0x{:02X} = {:?}", opcode, mnemonic)
         }
     }
@@ -311,8 +309,6 @@ impl CPU for CPUInterpreter {
                     self.op_cycle += 1;
                     return msg;
                 }
-
-                msg
             }
             Execute => {
                 let op = self.exec_op.expect("CPU in execute state without op");
@@ -349,12 +345,12 @@ impl CPU for CPUInterpreter {
         self.state = CPUState::Execute;
         self.fetch_op = None;
         self.fetch_cycles = 0;
-        self.exec_op = Some(Ops::reset);
+        self.exec_op = Some(ops::reset);
         self.exec_cycles = 8;
     }
 }
 
-mod Addressing {
+mod addressing {
     use super::{BusMessage, CPUFlags, CPURegisters};
     use super::BusMessage::*;
 
@@ -364,7 +360,7 @@ mod Addressing {
     }
 }
 
-mod Ops {
+mod ops {
     use super::{BusMessage, CPUFlags, CPURegisters};
     use super::BusMessage::*;
 
