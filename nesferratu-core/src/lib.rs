@@ -41,11 +41,11 @@ impl Bus {
             }
         }
 
+        println!("Program:");
+        self.memory.prettyprint(0x1337, 0x40);
+
         println!("Zero Page:");
         self.memory.prettyprint(0x0000, 0x100);
-
-        println!("Program:");
-        self.memory.prettyprint(0x1337, 0x20);
     }
 
     fn read(&self, addr: u16) -> Option<u8> {
@@ -102,8 +102,9 @@ impl Memory {
 
         println!("┌──────┬─────────────────────────────────────────────────┐");
         println!("│ RAM  │ 00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F │");
-        println!("├──────┼─────────────────────────────────────────────────┤");
+        println!("├──────┼─────────────────────────────────────────────────┼──────────────────┐");
         let mut col = 0;
+        let mut s = String::new();
 
         for (i, b) in self.ram[addr as usize .. addr as usize + len].iter().enumerate() {
             if i % 0x10 == 0 {
@@ -111,10 +112,18 @@ impl Memory {
             }
             
             print!("{:02X} ", b);
+            
+            let c = *b as char;
+            if c.is_ascii_graphic() || c == ' ' {
+                s.push(c);
+            } else {
+                s.push('.');
+            }
 
             col = i & 0xF;
             if col == 0xF {
-                println!("│");
+                println!("│ {} │", s);
+                s.clear();
             }
         }
 
@@ -123,10 +132,13 @@ impl Memory {
                 print!("   ");
                 col += 1;
             }
-            println!("│");
+            while s.len() <= 0xF {
+                s.push(' ');
+            }
+            println!("│ {} │", s);
         }
 
-        println!("└──────┴─────────────────────────────────────────────────┘");
+        println!("└──────┴─────────────────────────────────────────────────┴──────────────────┘");
     }
 }
 
