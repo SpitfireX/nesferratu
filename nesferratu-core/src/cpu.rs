@@ -10,6 +10,7 @@ pub trait CPU {
     fn reset(&mut self);
 }
 
+#[derive(Debug)]
 pub enum BusMessage {
     Read {addr: u16},
     Write {addr: u16, data: u8},
@@ -254,7 +255,7 @@ type OpDelegateImmediate = fn(&mut CPURegisters, u8, usize) -> BusMessage;
 type OpDelegateAddress = fn(&mut CPURegisters, u16, usize) -> BusMessage;
 
 pub struct CPUInterpreter {
-    // CPU internals
+    // CPU state
     registers: CPURegisters,
 
     // helper variables
@@ -341,16 +342,16 @@ impl CPU for CPUInterpreter {
                 CPUState::Fetch => {
                     match self.op_cycle {
                         1 => {
-                            self.registers.op = data.expect("bus data can't be empty in fetch cycle 1");
+                            self.registers.op = data.expect("Bus data can't be empty in fetch cycle 1");
                             self.instruction = Some(self.decode_opcode(self.registers.op));
                             self.registers.pc += 1;
                         },
                         2 => {
-                            self.registers.o1 = data.expect("bus data can't be empty in fetch cycle 2");
+                            self.registers.o1 = data.expect("Bus data can't be empty in fetch cycle 2");
                             self.registers.pc += 1;
                         },
                         3 => {
-                            self.registers.o2 = data.expect("bus data can't be empty in fetch cycle 3");
+                            self.registers.o2 = data.expect("Bus data can't be empty in fetch cycle 3");
                             self.registers.pc += 1;
                         },
                         _ => panic!("Fetch state can't take longer than 3 cycles"),
@@ -377,7 +378,7 @@ impl CPU for CPUInterpreter {
                             }
                         }
                     } else {
-                        panic!("CPU::instruction is None, this should be impossilbe at this point");
+                        panic!("CPU::instruction is None, this should be impossible at this point");
                     }
                 }
                 CPUState::Execute => {
@@ -412,7 +413,7 @@ impl CPU for CPUInterpreter {
                         }
 
                         if self.op_cycle < instruction.cyles {
-                            return msg.expect("BusMessage can't None after OpDelegate execution");
+                            return msg.expect("BusMessage can't be None after OpDelegate execution");
                         } else {
                             // We're done with this instruction, prepare the next one!
                             self.op_cycle = 0;
@@ -429,7 +430,7 @@ impl CPU for CPUInterpreter {
                 }
                 CPUState::Halt => {
                     println!("CPU is halted");
-                    
+                    return Nop;
                 }
             }
         }
@@ -462,7 +463,7 @@ impl CPU for CPUInterpreter {
 }
 
 mod addressing {
-    use super::{AddrDelegateReturn, BusMessage, CPUFlags, CPURegisters, Operand};
+    use super::{AddrDelegateReturn, CPURegisters, Operand};
     use super::BusMessage::*;
 
     pub fn reset_vector(regs: &mut CPURegisters, cycle: usize) -> AddrDelegateReturn {
@@ -471,22 +472,22 @@ mod addressing {
         match cycle {
             1 => AddrDelegateReturn::Yield(Read{addr: reset_addr}),
             2 => {
-                regs.pc |= regs.data as u16; // set low byte of new PC addresss
+                regs.pc |= regs.data as u16; // set low byte of new PC address
                 AddrDelegateReturn::Yield(Read{addr: reset_addr+1})
             },
             3 => {
-                regs.pc |= (regs.data as u16) << 8;
+                regs.pc |= (regs.data as u16) << 8; // set high byte of ne PC address
                 AddrDelegateReturn::Return(Operand::Implied)
             },
             _ => panic!("Impossible cycle count in match"),
         }
     }
 
-    pub fn immediate(regs: &mut CPURegisters, cycle: usize) -> AddrDelegateReturn {
+    pub fn immediate(regs: &mut CPURegisters, _cycle: usize) -> AddrDelegateReturn {
         AddrDelegateReturn::Return(Operand::Immediate(regs.o1))
     }
 
-    pub fn zero_page(regs: &mut CPURegisters, cycle: usize) -> AddrDelegateReturn {
+    pub fn zero_page(regs: &mut CPURegisters, _cycle: usize) -> AddrDelegateReturn {
         AddrDelegateReturn::Return(Operand::Address(regs.o1 as u16))
     }
 }
@@ -495,7 +496,7 @@ mod ops {
     use super::{BusMessage, CPUFlags, CPURegisters};
     use super::BusMessage::*;
 
-    pub fn lda_imm(regs: &mut CPURegisters, immediate: u8, cycle: usize) -> BusMessage {
+    pub fn lda_imm(regs: &mut CPURegisters, immediate: u8, _cycle: usize) -> BusMessage {
         regs.a = immediate;
         regs.set_flag(CPUFlags::Z, regs.a == 0);
         regs.set_flag(CPUFlags::N, regs.a & 0x80 == 0x80);
