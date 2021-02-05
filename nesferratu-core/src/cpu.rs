@@ -186,8 +186,8 @@ enum CPUFlags {
 
 #[derive(Debug)]
 enum CPUState {
-    FetchDecode,
     Fetch,
+    Addressing,
     Execute,
     Halt,
 }
@@ -202,7 +202,10 @@ pub struct CPURegisters {
     status: u8, // Status Register
     
     // emulation helpers
-    addr: u16   // Address Register for the next ops
+    op: u8,     // 1st byte of instruction
+    o1: u8,     // 2nd byte of instruction
+    o2: u8,     // 3rd byte of instruction
+    data: u8,   // data from bus
 }
 
 impl CPURegisters {
@@ -219,20 +222,49 @@ impl CPURegisters {
     }
 }
 
-type OpDelegate = fn(&mut CPURegisters, Option<u8>, u8) -> BusMessage;
+struct Instruction {
+    cyles: usize,
+    bytes: usize,
+    addr_delegate: AddrDelegate,
+    op_delegate: OpDelegate,
+    mnemonic: &'static str,
+    addressing: &'static str,
+}
+
+pub enum Operand {
+    Implied,
+    Immediate(u8),
+    Address(u16),
+}
+
+pub enum AddrDelegateReturn {
+    Yield(BusMessage),
+    Return(Operand),
+}
+
+enum OpDelegate {
+    Implied(OpDelegateImplied),
+    Immediate(OpDelegateImmediate),
+    Address(OpDelegateAddress),
+}
+
+type AddrDelegate = fn(&mut CPURegisters, usize) -> AddrDelegateReturn;
+type OpDelegateImplied = fn(&mut CPURegisters, usize) -> BusMessage;
+type OpDelegateImmediate = fn(&mut CPURegisters, u8, usize) -> BusMessage;
+type OpDelegateAddress = fn(&mut CPURegisters, u16, usize) -> BusMessage;
 
 pub struct CPUInterpreter {
     // CPU internals
     registers: CPURegisters,
 
     // helper variables
-    total_cycles: u32,
-    op_cycle: u8,
+    total_cycles: usize,
+    op_cycle: usize,
+    addr_cycle: usize,
+    exec_cycle: usize,
     state: CPUState,
-    fetch_op: Option<OpDelegate>,
-    fetch_cycles: u8,
-    exec_op: Option<OpDelegate>,
-    exec_cycles: u8,
+    instruction: Option<Instruction>,
+    operand: Option<Operand>,
 }
 
 impl CPUInterpreter {
@@ -242,24 +274,45 @@ impl CPUInterpreter {
 
             total_cycles: 0,
             op_cycle: 0,
+            addr_cycle: 0,
+            exec_cycle: 0,
             state: CPUState::Halt,
-            fetch_op: None,
-            fetch_cycles: 0,
-            exec_op: None,
-            exec_cycles: 0,
+            instruction: None,
+            operand: None,
         }
     }
 
     fn print_debug(&self) {
         println!("cycle: {}, op_cycle: {}, state: {:?}", self.total_cycles, self.op_cycle, self.state);
+        if let Some(i) = self.instruction.as_ref() {
+            println!("op: {}, addr: {}, bytes: {}, cycles: {}", i.mnemonic, i.addressing, i.bytes, i.cyles);
+        }
         println!("{:02X?}", self.registers);
     }
 
-    fn decode_opcode(&self, opcode: u8) -> ((u8, OpDelegate), (u8, OpDelegate)) {
+    fn decode_opcode(&self, opcode: u8) -> Instruction {
         let mnemonic: Opcodes = Opcodes::from_u8(opcode).expect("Invalid opcode");
         match mnemonic {
-            Opcodes::LDA_imm => ((1, addressing::immediate), (1, ops::lda)),
-            Opcodes::STA_zp => ((1, addressing::zero_page), (2, ops::sta)),
+            Opcodes::LDA_imm => (
+                Instruction{
+                    cyles: 2,
+                    bytes: 2,
+                    addr_delegate: addressing::immediate,
+                    op_delegate: OpDelegate::Immediate(ops::lda_imm),
+                    mnemonic: "LDA",
+                    addressing: "Immediate",
+                }
+            ),
+            Opcodes::STA_zp => (
+                Instruction{
+                    cyles: 3,
+                    bytes: 2,
+                    addr_delegate: addressing::zero_page,
+                    op_delegate: OpDelegate::Address(ops::sta_addr),
+                    mnemonic: "STA",
+                    addressing: "ZP",
+                }
+            ),
             _ => panic!("Unimplemented opcode 0x{:02X} = {:?}", opcode, mnemonic)
         }
     }
@@ -273,62 +326,111 @@ impl CPU for CPUInterpreter {
         use BusMessage::*;
 
         self.total_cycles += 1;
+        self.op_cycle += 1;
         self.print_debug();
 
         if let Some(data) = data {
             println!("\tbus data 0x{:02X}", data);
+            self.registers.data = data;
         }
 
-        if let FetchDecode = self.state {
-            let decoded = self.decode_opcode(data.expect("No Opcode to decode"));
-            self.fetch_cycles = decoded.0.0;
-            self.fetch_op = Some(decoded.0.1);
-            self.exec_cycles = decoded.1.0;
-            self.exec_op = Some(decoded.1.1);
+        // CPU state machine
 
-            if self.fetch_op.is_some() {
-                self.state = Fetch;
-            } else if self.exec_op.is_some() {
-                self.state = Execute;
-            } else {
-                panic!("No valid CPU state to switch to");
-            }
+        loop {
+            match self.state {
+                CPUState::Fetch => {
+                    match self.op_cycle {
+                        1 => {
+                            self.registers.op = data.expect("bus data can't be empty in fetch cycle 1");
+                            self.instruction = Some(self.decode_opcode(self.registers.op));
+                            self.registers.pc += 1;
+                        },
+                        2 => {
+                            self.registers.o1 = data.expect("bus data can't be empty in fetch cycle 2");
+                            self.registers.pc += 1;
+                        },
+                        3 => {
+                            self.registers.o2 = data.expect("bus data can't be empty in fetch cycle 3");
+                            self.registers.pc += 1;
+                        },
+                        _ => panic!("Fetch state can't take longer than 3 cycles"),
+                    }
 
-            self.registers.pc += 1;
-        }
-
-        match self.state {
-            FetchDecode => {
-                panic!("CPU shouldn't be in decode state anymore")
-            }
-            Fetch => {
-                let op = self.fetch_op.expect("CPU in fetch state without op");
-                let msg = op(&mut self.registers, data, self.op_cycle);
-
-                if self.op_cycle >= self.fetch_cycles { // fetch is done
-                    self.state = Execute;
-                    self.op_cycle = 1;
-                } else {
-                    self.op_cycle += 1;
+                    if self.op_cycle < self.instruction.as_ref().expect("CPU::instruction cant be None after decoding").bytes {
+                        return Read{addr: self.registers.pc};
+                    } else {
+                        self.state = Addressing;
+                    }
                 }
-                msg
-            }
-            Execute => {
-                let op = self.exec_op.expect("CPU in execute state without op");
-                let msg = op(&mut self.registers, data, self.op_cycle);
+                CPUState::Addressing => {
+                    self.addr_cycle += 1;
 
-                if self.op_cycle >= self.exec_cycles { // execution is done
-                    self.state = FetchDecode;
-                    self.op_cycle = 1;
-                    return Read{addr: self.registers.pc};
-                } else {
-                    self.op_cycle += 1;
-                    return msg;
+                    if let Some(instruction) = self.instruction.as_ref() {
+                        match (instruction.addr_delegate)(&mut self.registers, self.addr_cycle) {
+                            AddrDelegateReturn::Yield(msg) => {
+                                return msg;
+                            }
+                            AddrDelegateReturn::Return(operand) => {
+                                self.operand = Some(operand);
+                                self.state = Execute;
+                                continue;
+                            }
+                        }
+                    } else {
+                        panic!("CPU::instruction is None, this should be impossilbe at this point");
+                    }
                 }
-            }
-            Halt => {
-                println!("CPU is halted");
-                Nop
+                CPUState::Execute => {
+                    self.exec_cycle += 1;
+
+                    if let Some(instruction) = self.instruction.as_ref() {
+                        let operand = self.operand.as_ref().expect("CPU::operand can't be None after addressing");
+                        let msg: Option<BusMessage>;
+
+                        match instruction.op_delegate {
+                            OpDelegate::Implied(delegate) => {
+                                if let Operand::Implied = operand {
+                                    msg = Some(delegate(&mut self.registers, self.exec_cycle));
+                                } else {
+                                    panic!("Incompatible operand type");
+                                }
+                            }
+                            OpDelegate::Immediate(delegate) => {
+                                if let Operand::Immediate(imm) = operand {
+                                    msg = Some(delegate(&mut self.registers, *imm, self.exec_cycle));
+                                } else {
+                                    panic!("Incompatible operand type");
+                                }
+                            }
+                            OpDelegate::Address(delegate) => {
+                                if let Operand::Address(addr) = operand {
+                                    msg = Some(delegate(&mut self.registers, *addr, self.exec_cycle));
+                                } else {
+                                    panic!("Incompatible operand type");
+                                }
+                            }
+                        }
+
+                        if self.op_cycle < instruction.cyles {
+                            return msg.expect("BusMessage can't None after OpDelegate execution");
+                        } else {
+                            // We're done with this instruction, prepare the next one!
+                            self.op_cycle = 0;
+                            self.addr_cycle = 0;
+                            self.exec_cycle = 0;
+                            self.instruction = None;
+                            self.operand = None;
+                            self.state = Fetch;
+                            return Read{addr: self.registers.pc};
+                        }
+                    } else {
+                        panic!("CPU::instruction is None, this should be impossilbe at this point");
+                    }
+                }
+                CPUState::Halt => {
+                    println!("CPU is halted");
+                    
+                }
             }
         }
     }
@@ -344,27 +446,48 @@ impl CPU for CPUInterpreter {
     fn reset(&mut self) {
         println!("CPU reset");
         self.total_cycles = 0;
-        self.op_cycle = 1;
-        self.state = CPUState::Execute;
-        self.fetch_op = None;
-        self.fetch_cycles = 0;
-        self.exec_op = Some(ops::reset);
-        self.exec_cycles = 8;
+        self.op_cycle = 0;
+        self.addr_cycle = 0;
+        self.exec_cycle = 0;
+        self.state = CPUState::Addressing;
+        self.instruction = Some(Instruction {
+            cyles: 8,
+            bytes: 0,
+            addr_delegate: addressing::reset_vector,
+            op_delegate: OpDelegate::Implied(ops::reset),
+            mnemonic: "RESET",
+            addressing: "Reset Vector",
+        });
     }
 }
 
 mod addressing {
-    use super::{BusMessage, CPUFlags, CPURegisters};
+    use super::{AddrDelegateReturn, BusMessage, CPUFlags, CPURegisters, Operand};
     use super::BusMessage::*;
 
-    pub fn immediate(regs: &mut CPURegisters, data: Option<u8>, cycle: u8) -> BusMessage {
-        regs.pc += 1; // PC at next instruction
-        Read{addr: regs.pc-1} // issue read of opperand for execute step
+    pub fn reset_vector(regs: &mut CPURegisters, cycle: usize) -> AddrDelegateReturn {
+        let reset_addr: u16 = 0xFFFC;
+        
+        match cycle {
+            1 => AddrDelegateReturn::Yield(Read{addr: reset_addr}),
+            2 => {
+                regs.pc |= regs.data as u16; // set low byte of new PC addresss
+                AddrDelegateReturn::Yield(Read{addr: reset_addr+1})
+            },
+            3 => {
+                regs.pc |= (regs.data as u16) << 8;
+                AddrDelegateReturn::Return(Operand::Implied)
+            },
+            _ => panic!("Impossible cycle count in match"),
+        }
     }
 
-    pub fn zero_page(regs: &mut CPURegisters, data: Option<u8>, cycle: u8) -> BusMessage {
-        regs.pc += 1; // PC at next instruction
-        Read{addr: regs.pc-1} // issue read of opperand for execute step
+    pub fn immediate(regs: &mut CPURegisters, cycle: usize) -> AddrDelegateReturn {
+        AddrDelegateReturn::Return(Operand::Immediate(regs.o1))
+    }
+
+    pub fn zero_page(regs: &mut CPURegisters, cycle: usize) -> AddrDelegateReturn {
+        AddrDelegateReturn::Return(Operand::Address(regs.o1 as u16))
     }
 }
 
@@ -372,41 +495,36 @@ mod ops {
     use super::{BusMessage, CPUFlags, CPURegisters};
     use super::BusMessage::*;
 
-    pub fn lda(regs: &mut CPURegisters, data: Option<u8>, cycle: u8) -> BusMessage {
-        regs.a = data.expect("Empty data");
+    pub fn lda_imm(regs: &mut CPURegisters, immediate: u8, cycle: usize) -> BusMessage {
+        regs.a = immediate;
         regs.set_flag(CPUFlags::Z, regs.a == 0);
         regs.set_flag(CPUFlags::N, regs.a & 0x80 == 0x80);
         Nop
     }
 
-    pub fn sta(regs: &mut CPURegisters, data: Option<u8>, cycle: u8) -> BusMessage {
+    pub fn sta_addr(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMessage {
         match cycle {
             1 => {
-                regs.addr = data.expect("Empty data") as u16;
-                Write{addr: regs.addr, data: regs.a}
+                Write{addr: address, data: regs.a}
             },
             _ => Nop,
         }
     }
 
-    pub fn reset(regs: &mut CPURegisters, data: Option<u8>, cycle: u8) -> BusMessage {
-        let reset_addr: u16 = 0xFFFC;
-        
+    pub fn reset(regs: &mut CPURegisters, cycle: usize) -> BusMessage {
         match cycle {
-            1 => Read{addr: reset_addr},
-            2 => {
-                regs.pc |= data.expect("Empty data") as u16; // set low byte of new PC addresss
-                Read{addr: reset_addr+1}
-            },
-            3 => {
-                regs.pc |= (data.expect("Empty data") as u16) << 8; // set high byte of the new PC address
-                
+            1 => {                
                 // reset rest of the registers
                 regs.a = 0x00;
                 regs.x = 0x00;
                 regs.y = 0x00;
                 regs.sp = 0xFD; // default address for stack pointer
                 regs.status = 0x00;
+
+                // also the relevant helpers
+                regs.op = 0x00;
+                regs.o1 = 0x00;
+                regs.o2 = 0x00;
                 
                 Nop
             },
