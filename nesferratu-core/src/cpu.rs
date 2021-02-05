@@ -200,6 +200,9 @@ pub struct CPURegisters {
     sp: u8,     // Stack Pointer
     pc: u16,    // Program Counter
     status: u8, // Status Register
+    
+    // emulation helpers
+    addr: u16   // Address Register for the next ops
 }
 
 impl CPURegisters {
@@ -256,6 +259,7 @@ impl CPUInterpreter {
         let mnemonic: Opcodes = Opcodes::from_u8(opcode).expect("Invalid opcode");
         match mnemonic {
             Opcodes::LDA_imm => ((1, addressing::immediate), (1, ops::lda)),
+            Opcodes::STA_zp => ((1, addressing::zero_page), (2, ops::sta)),
             _ => panic!("Unimplemented opcode 0x{:02X} = {:?}", opcode, mnemonic)
         }
     }
@@ -355,7 +359,12 @@ mod addressing {
 
     pub fn immediate(regs: &mut CPURegisters, data: Option<u8>, cycle: u8) -> BusMessage {
         regs.pc += 1; // PC at next instruction
-        Read{addr: regs.pc-1}
+        Read{addr: regs.pc-1} // issue read of opperand for execute step
+    }
+
+    pub fn zero_page(regs: &mut CPURegisters, data: Option<u8>, cycle: u8) -> BusMessage {
+        regs.pc += 1; // PC at next instruction
+        Read{addr: regs.pc-1} // issue read of opperand for execute step
     }
 }
 
@@ -368,6 +377,16 @@ mod ops {
         regs.set_flag(CPUFlags::Z, regs.a == 0);
         regs.set_flag(CPUFlags::N, regs.a & 0x80 == 0x80);
         Nop
+    }
+
+    pub fn sta(regs: &mut CPURegisters, data: Option<u8>, cycle: u8) -> BusMessage {
+        match cycle {
+            1 => {
+                regs.addr = data.expect("Empty data") as u16;
+                Write{addr: regs.addr, data: regs.a}
+            },
+            _ => Nop,
+        }
     }
 
     pub fn reset(regs: &mut CPURegisters, data: Option<u8>, cycle: u8) -> BusMessage {

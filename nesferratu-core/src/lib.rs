@@ -42,7 +42,7 @@ impl Bus {
         }
 
         println!("Program:");
-        self.memory.prettyprint(0x1337, 0x40);
+        self.memory.prettyprint(0x1337, 0x50);
 
         println!("Zero Page:");
         self.memory.prettyprint(0x0000, 0x100);
@@ -75,9 +75,65 @@ impl Memory {
         let entrypoint: u16 = 0x1337;
         let program = [
             0xA9u8, // LDA imm
-            0xFF,
-            0xA9, // LDA imm
+            b'h',
+            0x85, // STA zp
             0x00,
+            0xA9, // LDA imm
+            b'a',
+            0x85, // STA zp
+            0x01,
+            0xA9, // LDA imm
+            b'l',
+            0x85, // STA zp
+            0x02,
+            0xA9, // LDA imm
+            b'l',
+            0x85, // STA zp
+            0x03,
+            0xA9, // LDA imm
+            b'u',
+            0x85, // STA zp
+            0x04,
+            0xA9, // LDA imm
+            b' ',
+            0x85, // STA zp
+            0x05,
+            0xA9, // LDA imm
+            b'w',
+            0x85, // STA zp
+            0x06,
+            0xA9, // LDA imm
+            b'i',
+            0x85, // STA zp
+            0x07,
+            0xA9, // LDA imm
+            b'n',
+            0x85, // STA zp
+            0x08,
+            0xA9, // LDA imm
+            b'd',
+            0x85, // STA zp
+            0x09,
+            0xA9, // LDA imm
+            b'f',
+            0x85, // STA zp
+            0x0A,
+            0xA9, // LDA imm
+            b'i',
+            0x85, // STA zp
+            0x0B,
+            0xA9, // LDA imm
+            b's',
+            0x85, // STA zp
+            0x0C,
+            0xA9, // LDA imm
+            b'c',
+            0x85, // STA zp
+            0x0D,
+            0xA9, // LDA imm
+            b'h',
+            0x85, // STA zp
+            0x0E,
         ];
         
         // set reset vector
