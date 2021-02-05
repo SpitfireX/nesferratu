@@ -72,16 +72,21 @@ impl Memory {
         let mut new = Memory{
             ram: [0x00; 64*1024]
         };
+        let entrypoint: u16 = 0x1337;
+        let program = [
+            0xA9u8, // LDA imm
+            0xFF,
+            0xA9, // LDA imm
+            0x00,
+        ];
+        
+        // set reset vector
+        new.write(0xFFFC, entrypoint as u8);
+        new.write(0xFFFD, (entrypoint >> 8) as u8);
 
-        // reset vector
-        new.write(0xFFFC, 0x37);
-        new.write(0xFFFD, 0x13);
-
-        // program at 0x1337
-        new.write(0x1337, 0xA9); // 0xa9 = LDA_imm opcode
-        new.write(0x1338, 0xFF); // imm = 0xFF
-
-        new.write(0xFFFF, 0xAE);
+        // tranfer program to the entry point
+        let i = entrypoint as usize;
+        new.ram[i .. i + program.len()].clone_from_slice(&program);
 
         new
     }
