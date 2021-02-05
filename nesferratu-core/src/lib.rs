@@ -79,7 +79,7 @@ impl Memory {
             0x85, // STA zp
             0x00,
             0xA9, // LDA imm
-            b'a',
+            b'e',
             0x85, // STA zp
             0x01,
             0xA9, // LDA imm
@@ -91,7 +91,7 @@ impl Memory {
             0x85, // STA zp
             0x03,
             0xA9, // LDA imm
-            b'u',
+            b'o',
             0x85, // STA zp
             0x04,
             0xA9, // LDA imm
@@ -103,37 +103,21 @@ impl Memory {
             0x85, // STA zp
             0x06,
             0xA9, // LDA imm
-            b'i',
+            b'o',
             0x85, // STA zp
             0x07,
             0xA9, // LDA imm
-            b'n',
+            b'r',
             0x85, // STA zp
             0x08,
             0xA9, // LDA imm
-            b'd',
+            b'l',
             0x85, // STA zp
             0x09,
             0xA9, // LDA imm
-            b'f',
+            b'd',
             0x85, // STA zp
             0x0A,
-            0xA9, // LDA imm
-            b'i',
-            0x85, // STA zp
-            0x0B,
-            0xA9, // LDA imm
-            b's',
-            0x85, // STA zp
-            0x0C,
-            0xA9, // LDA imm
-            b'c',
-            0x85, // STA zp
-            0x0D,
-            0xA9, // LDA imm
-            b'h',
-            0x85, // STA zp
-            0x0E,
         ];
         
         // set reset vector
