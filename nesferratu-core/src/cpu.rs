@@ -304,11 +304,10 @@ impl CPU for CPUInterpreter {
                 if self.op_cycle >= self.fetch_cycles { // fetch is done
                     self.state = Execute;
                     self.op_cycle = 1;
-                    return Read{addr: self.registers.pc};
                 } else {
                     self.op_cycle += 1;
-                    return msg;
                 }
+                msg
             }
             Execute => {
                 let op = self.exec_op.expect("CPU in execute state without op");
@@ -356,7 +355,7 @@ mod addressing {
 
     pub fn immediate(regs: &mut CPURegisters, data: Option<u8>, cycle: u8) -> BusMessage {
         regs.pc += 1; // PC at next instruction
-        Read{addr: regs.pc}
+        Read{addr: regs.pc-1}
     }
 }
 
@@ -366,6 +365,8 @@ mod ops {
 
     pub fn lda(regs: &mut CPURegisters, data: Option<u8>, cycle: u8) -> BusMessage {
         regs.a = data.expect("Empty data");
+        regs.set_flag(CPUFlags::Z, regs.a == 0);
+        regs.set_flag(CPUFlags::N, regs.a & 0x80 == 0x80);
         Nop
     }
 
