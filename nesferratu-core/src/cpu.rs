@@ -224,7 +224,7 @@ impl CPURegisters {
 }
 
 struct Instruction {
-    cyles: usize,
+    cycles: usize,
     bytes: usize,
     addr_delegate: AddrDelegate,
     op_delegate: OpDelegate,
@@ -286,7 +286,7 @@ impl CPUInterpreter {
     fn print_debug(&self) {
         println!("cycle: {}, op_cycle: {}, state: {:?}", self.total_cycles, self.op_cycle, self.state);
         if let Some(i) = self.instruction.as_ref() {
-            println!("op: {}, addr: {}, bytes: {}, cycles: {}", i.mnemonic, i.addressing, i.bytes, i.cyles);
+            println!("op: {}, addr: {}, bytes: {}, cycles: {}", i.mnemonic, i.addressing, i.bytes, i.cycles);
         }
         println!("{:02X?}", self.registers);
     }
@@ -296,7 +296,7 @@ impl CPUInterpreter {
         match mnemonic {
             Opcodes::LDA_imm => (
                 Instruction{
-                    cyles: 2,
+                    cycles: 2,
                     bytes: 2,
                     addr_delegate: addressing::immediate,
                     op_delegate: OpDelegate::Immediate(ops::lda_imm),
@@ -306,7 +306,7 @@ impl CPUInterpreter {
             ),
             Opcodes::STA_zp => (
                 Instruction{
-                    cyles: 3,
+                    cycles: 3,
                     bytes: 2,
                     addr_delegate: addressing::zero_page,
                     op_delegate: OpDelegate::Address(ops::sta_addr),
@@ -366,66 +366,69 @@ impl CPU for CPUInterpreter {
                 CPUState::Addressing => {
                     self.addr_cycle += 1;
 
-                    if let Some(instruction) = self.instruction.as_ref() {
-                        match (instruction.addr_delegate)(&mut self.registers, self.addr_cycle) {
-                            AddrDelegateReturn::Yield(msg) => {
-                                return msg;
-                            }
-                            AddrDelegateReturn::Return(operand) => {
-                                self.operand = Some(operand);
-                                self.state = Execute;
-                                continue;
-                            }
+                    let instruction = self.instruction
+                                        .as_ref()
+                                        .expect("CPU::instruction is None, this should be impossible at this point");
+
+                    match (instruction.addr_delegate)(&mut self.registers, self.addr_cycle) {
+                        AddrDelegateReturn::Yield(msg) => {
+                            return msg;
                         }
-                    } else {
-                        panic!("CPU::instruction is None, this should be impossible at this point");
+                        AddrDelegateReturn::Return(operand) => {
+                            self.operand = Some(operand);
+                            self.state = Execute;
+                            continue;
+                        }
                     }
                 }
                 CPUState::Execute => {
                     self.exec_cycle += 1;
+                    
+                    let instruction = self.instruction
+                                        .as_ref()
+                                        .expect("CPU::instruction is None, this should be impossible at this point");
 
-                    if let Some(instruction) = self.instruction.as_ref() {
-                        let operand = self.operand.as_ref().expect("CPU::operand can't be None after addressing");
-                        let msg: Option<BusMessage>;
+                    let operand = self.operand
+                                        .as_ref()
+                                        .expect("CPU::operand can't be None after addressing");
+                    
+                    let msg: Option<BusMessage>;
 
-                        match instruction.op_delegate {
-                            OpDelegate::Implied(delegate) => {
-                                if let Operand::Implied = operand {
-                                    msg = Some(delegate(&mut self.registers, self.exec_cycle));
-                                } else {
-                                    panic!("Incompatible operand type");
-                                }
-                            }
-                            OpDelegate::Immediate(delegate) => {
-                                if let Operand::Immediate(imm) = operand {
-                                    msg = Some(delegate(&mut self.registers, *imm, self.exec_cycle));
-                                } else {
-                                    panic!("Incompatible operand type");
-                                }
-                            }
-                            OpDelegate::Address(delegate) => {
-                                if let Operand::Address(addr) = operand {
-                                    msg = Some(delegate(&mut self.registers, *addr, self.exec_cycle));
-                                } else {
-                                    panic!("Incompatible operand type");
-                                }
+                    match instruction.op_delegate {
+                        OpDelegate::Implied(delegate) => {
+                            if let Operand::Implied = operand {
+                                msg = Some(delegate(&mut self.registers, self.exec_cycle));
+                            } else {
+                                panic!("Incompatible operand type");
                             }
                         }
-
-                        if self.op_cycle < instruction.cyles {
-                            return msg.expect("BusMessage can't be None after OpDelegate execution");
-                        } else {
-                            // We're done with this instruction, prepare the next one!
-                            self.op_cycle = 0;
-                            self.addr_cycle = 0;
-                            self.exec_cycle = 0;
-                            self.instruction = None;
-                            self.operand = None;
-                            self.state = Fetch;
-                            return Read{addr: self.registers.pc};
+                        OpDelegate::Immediate(delegate) => {
+                            if let Operand::Immediate(imm) = operand {
+                                msg = Some(delegate(&mut self.registers, *imm, self.exec_cycle));
+                            } else {
+                                panic!("Incompatible operand type");
+                            }
                         }
+                        OpDelegate::Address(delegate) => {
+                            if let Operand::Address(addr) = operand {
+                                msg = Some(delegate(&mut self.registers, *addr, self.exec_cycle));
+                            } else {
+                                panic!("Incompatible operand type");
+                            }
+                        }
+                    }
+
+                    if self.op_cycle < instruction.cycles {
+                        return msg.expect("BusMessage can't be None after OpDelegate execution");
                     } else {
-                        panic!("CPU::instruction is None, this should be impossilbe at this point");
+                        // We're done with this instruction, prepare the next one!
+                        self.op_cycle = 0;
+                        self.addr_cycle = 0;
+                        self.exec_cycle = 0;
+                        self.instruction = None;
+                        self.operand = None;
+                        self.state = Fetch;
+                        return Read{addr: self.registers.pc};
                     }
                 }
                 CPUState::Halt => {
@@ -452,7 +455,7 @@ impl CPU for CPUInterpreter {
         self.exec_cycle = 0;
         self.state = CPUState::Addressing;
         self.instruction = Some(Instruction {
-            cyles: 8,
+            cycles: 8,
             bytes: 0,
             addr_delegate: addressing::reset_vector,
             op_delegate: OpDelegate::Implied(ops::reset),
