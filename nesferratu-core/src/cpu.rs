@@ -249,6 +249,32 @@ enum OpDelegate {
     Address(OpDelegateAddress),
 }
 
+impl OpDelegate {
+    pub fn implied(&self) -> Option<&OpDelegateImplied> {
+        if let Self::Implied(delegate) = self {
+            Some(&delegate)
+        } else {
+            None
+        }
+    }
+
+    pub fn immediate(&self) -> Option<&OpDelegateImmediate> {
+        if let Self::Immediate(delegate) = self {
+            Some(&delegate)
+        } else {
+            None
+        }
+    }
+
+    pub fn address(&self) -> Option<&OpDelegateAddress> {
+        if let Self::Address(delegate) = self {
+            Some(&delegate)
+        } else {
+            None
+        }
+    }
+}
+
 type AddrDelegate = fn(&mut CPURegisters, usize) -> AddrDelegateReturn;
 type OpDelegateImplied = fn(&mut CPURegisters, usize) -> BusMessage;
 type OpDelegateImmediate = fn(&mut CPURegisters, u8, usize) -> BusMessage;
@@ -392,34 +418,20 @@ impl CPU for CPUInterpreter {
                                         .as_ref()
                                         .expect("CPU::operand can't be None after addressing");
                     
-                    let msg: Option<BusMessage>;
-
-                    match instruction.op_delegate {
-                        OpDelegate::Implied(delegate) => {
-                            if let Operand::Implied = operand {
-                                msg = Some(delegate(&mut self.registers, self.exec_cycle));
-                            } else {
-                                panic!("Incompatible operand type");
-                            }
+                    let msg: BusMessage = match operand {
+                        Operand::Implied => {
+                            instruction.op_delegate.implied().unwrap()(&mut self.registers, self.exec_cycle)
                         }
-                        OpDelegate::Immediate(delegate) => {
-                            if let Operand::Immediate(imm) = operand {
-                                msg = Some(delegate(&mut self.registers, *imm, self.exec_cycle));
-                            } else {
-                                panic!("Incompatible operand type");
-                            }
+                        Operand::Immediate(imm) => {
+                            instruction.op_delegate.immediate().unwrap()(&mut self.registers, *imm, self.exec_cycle)
                         }
-                        OpDelegate::Address(delegate) => {
-                            if let Operand::Address(addr) = operand {
-                                msg = Some(delegate(&mut self.registers, *addr, self.exec_cycle));
-                            } else {
-                                panic!("Incompatible operand type");
-                            }
+                        Operand::Address(addr) => {
+                            instruction.op_delegate.address().unwrap()(&mut self.registers, *addr, self.exec_cycle)
                         }
-                    }
+                    };
 
                     if self.op_cycle < instruction.cycles {
-                        return msg.expect("BusMessage can't be None after OpDelegate execution");
+                        return msg;
                     } else {
                         // We're done with this instruction, prepare the next one!
                         self.op_cycle = 0;
