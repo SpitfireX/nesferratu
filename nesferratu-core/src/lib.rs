@@ -1,4 +1,3 @@
-#[macro_use]
 extern crate num_derive;
 
 use cpu::{CPU, CPUInterpreter};

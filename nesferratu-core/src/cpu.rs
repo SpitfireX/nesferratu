@@ -1,3 +1,4 @@
+#[allow(unused_variables)]
 pub mod instructions;
 
 use num_traits::FromPrimitive;
