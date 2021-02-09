@@ -21,6 +21,7 @@ enum CPUFlags {
     I = (1 << 2),   // Disable Interrupts
     D = (1 << 3),   // Decimal Mode (unused in this implementation)
     B = (1 << 4),   // Break
+                    // 3rd bit unused and always high
     V = (1 << 6),   // Overflow
     N = (1 << 7),   // Negative
 }
@@ -220,11 +221,19 @@ impl CPU for CPUInterpreter {
 
     fn reset(&mut self) {
         println!("CPU reset");
+
+        // zero internal interpreter state
         self.total_cycles = 0;
         self.op_cycle = 0;
         self.addr_cycle = 0;
         self.exec_cycle = 0;
-        self.state = CPUState::Addressing;
+
+        // set IRQ disable flag
+        self.registers.set_flag(CPUFlags::I, true);
+
+        // dispatch reset pseudo-instruction with the reset vector address as operand
+        self.state = CPUState::Execute;
+        self.operand = Some(Operand::Address(0xFFFC));
         self.instruction = Some(&instructions::RESET_INSTRUCTION);
     }
 }

@@ -246,31 +246,17 @@ pub type OpDelegateAddress = fn(&mut CPURegisters, u16, usize) -> BusMessage;
 pub static RESET_INSTRUCTION: Instruction = Instruction {
     cycles: 8,
     bytes: 0,
-    addr_delegate: addressing::reset_vector,
-    op_delegate: OpDelegate::Implied(ops::reset),
+    addr_delegate: addressing::implied, // addressing should be skipped altogether
+    op_delegate: OpDelegate::Address(ops::reset),
     mnemonic: "RESET",
     addressing: "Reset Vector",
 };
 
 mod addressing {
     use crate::cpu::{AddrDelegateReturn, CPURegisters, Operand};
-    use crate::BusMessage::*;
 
-    pub fn reset_vector(regs: &mut CPURegisters, cycle: usize) -> AddrDelegateReturn {
-        let reset_addr: u16 = 0xFFFC;
-        
-        match cycle {
-            1 => AddrDelegateReturn::Yield(Read{addr: reset_addr}),
-            2 => {
-                regs.pc |= regs.data as u16; // set low byte of new PC address
-                AddrDelegateReturn::Yield(Read{addr: reset_addr+1})
-            },
-            3 => {
-                regs.pc |= (regs.data as u16) << 8; // set high byte of ne PC address
-                AddrDelegateReturn::Return(Operand::Implied)
-            },
-            _ => panic!("Impossible cycle count in match"),
-        }
+    pub fn implied(_regs: &mut CPURegisters, _cycle: usize) -> AddrDelegateReturn {
+        AddrDelegateReturn::Return(Operand::Implied)
     }
 
     pub fn immediate(regs: &mut CPURegisters, _cycle: usize) -> AddrDelegateReturn {
@@ -303,24 +289,35 @@ mod ops {
         }
     }
 
-    pub fn reset(regs: &mut CPURegisters, cycle: usize) -> BusMessage {
+    pub fn reset(regs: &mut CPURegisters, reset_vector: u16, cycle: usize) -> BusMessage {
         match cycle {
-            1 => {                
+            x if x < 6 => Nop,
+            6 => {
+                regs.set_flag(CPUFlags::I, true);
+                Read{addr: reset_vector}
+            },
+            7 => {
+                regs.pc |= regs.data as u16; // set low byte of new PC address
+                Read{addr: reset_vector+1}
+            },
+            8 => {
+                regs.pc |= (regs.data as u16) << 8; // set high byte of ne PC address
+
                 // reset rest of the registers
                 regs.a = 0x00;
                 regs.x = 0x00;
                 regs.y = 0x00;
                 regs.sp = 0xFD; // default address for stack pointer
-                regs.status = 0x00;
+                regs.status = 0x24; // 3rd bit unused and always high, I flag still set
 
                 // also the relevant helpers
                 regs.op = 0x00;
                 regs.o1 = 0x00;
                 regs.o2 = 0x00;
                 
-                Nop
+                Read{addr: regs.pc}
             },
-            _ => Nop,
+            _ => panic!("Impossible cycle count in match, reset takes 8 cycles"),
         }
     }
 }
