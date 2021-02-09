@@ -1,11 +1,16 @@
-#![feature(destructuring_assignment)]
-
 #[macro_use]
 extern crate num_derive;
 
-use cpu::{BusMessage, CPU, CPUInterpreter};
+use cpu::{CPU, CPUInterpreter};
 
 pub mod cpu;
+
+#[derive(Debug)]
+pub enum BusMessage {
+    Read {addr: u16},
+    Write {addr: u16, data: u8},
+    Nop,
+}
 
 pub struct Bus {
     fetch: Option<u8>,
