@@ -1,5 +1,76 @@
+pub mod addressing;
+pub mod ops;
+
 use crate::cpu::{CPURegisters};
 use crate::BusMessage;
+
+pub struct Instruction {
+    pub cycles: usize,
+    pub bytes: usize,
+    pub addr_delegate: AddrDelegate,
+    pub op_delegate: OpDelegate,
+    pub mnemonic: &'static str,
+    pub addressing: &'static str,
+}
+
+pub enum Operand {
+    Implied,
+    Immediate(u8),
+    Address(u16),
+}
+
+pub enum OpDelegate {
+    Implied(OpDelegateImplied),
+    Immediate(OpDelegateImmediate),
+    Address(OpDelegateAddress),
+}
+
+impl OpDelegate {
+    pub fn implied(&self) -> Option<&OpDelegateImplied> {
+        if let Self::Implied(delegate) = self {
+            Some(&delegate)
+        } else {
+            None
+        }
+    }
+
+    pub fn immediate(&self) -> Option<&OpDelegateImmediate> {
+        if let Self::Immediate(delegate) = self {
+            Some(&delegate)
+        } else {
+            None
+        }
+    }
+
+    pub fn address(&self) -> Option<&OpDelegateAddress> {
+        if let Self::Address(delegate) = self {
+            Some(&delegate)
+        } else {
+            None
+        }
+    }
+}
+
+pub enum AddrDelegateReturn {
+    Yield(BusMessage),
+    Return(Operand),
+}
+
+pub type AddrDelegate = fn(&mut CPURegisters, usize) -> AddrDelegateReturn;
+pub type OpDelegateImplied = fn(&mut CPURegisters, usize) -> BusMessage;
+pub type OpDelegateImmediate = fn(&mut CPURegisters, u8, usize) -> BusMessage;
+pub type OpDelegateAddress = fn(&mut CPURegisters, u16, usize) -> BusMessage;
+
+pub static RESET_INSTRUCTION: Instruction = Instruction {
+    cycles: 8,
+    bytes: 0,
+    addr_delegate: addressing::imp, // addressing should be skipped altogether
+    op_delegate: OpDelegate::Address(ops::reset),
+    mnemonic: "RESET",
+    addressing: "Reset Vector",
+};
+
+//⚠️ here be automatically generated dragons 🐉
 
 #[derive(num_derive::FromPrimitive, Debug, Copy, Clone)]
 #[allow(non_camel_case_types)]
@@ -161,163 +232,1667 @@ pub enum Opcode {
 impl Opcode {
     pub fn to_instruction(&self) -> &'static Instruction {
         match self {
-            Opcode::LDA_imm => (
+            
+            Opcode::BRK_imp => {
                 &Instruction{
-                    cycles: 2,
-                    bytes: 2,
-                    addr_delegate: addressing::immediate,
-                    op_delegate: OpDelegate::Immediate(ops::lda_imm),
-                    mnemonic: "LDA",
-                    addressing: "Immediate",
+                    cycles: 7,
+                    bytes: 1,
+                    addr_delegate: addressing::imp,
+                    op_delegate: OpDelegate::Implied(ops::brk_implied),
+                    mnemonic: "BRK",
+                    addressing: "Implied",
                 }
-            ),
-            Opcode::STA_zp => (
+            }
+            
+            Opcode::ORA_ind_x => {
+                &Instruction{
+                    cycles: 6,
+                    bytes: 2,
+                    addr_delegate: addressing::ind_x,
+                    op_delegate: OpDelegate::Address(ops::ora_address),
+                    mnemonic: "ORA",
+                    addressing: "(IND, X)",
+                }
+            }
+            
+            Opcode::ORA_zp => {
                 &Instruction{
                     cycles: 3,
                     bytes: 2,
-                    addr_delegate: addressing::zero_page,
-                    op_delegate: OpDelegate::Address(ops::sta_addr),
+                    addr_delegate: addressing::zp,
+                    op_delegate: OpDelegate::Address(ops::ora_address),
+                    mnemonic: "ORA",
+                    addressing: "ZP",
+                }
+            }
+            
+            Opcode::ASL_zp => {
+                &Instruction{
+                    cycles: 5,
+                    bytes: 2,
+                    addr_delegate: addressing::zp,
+                    op_delegate: OpDelegate::Address(ops::asl_address),
+                    mnemonic: "ASL",
+                    addressing: "ZP",
+                }
+            }
+            
+            Opcode::PHP_imp => {
+                &Instruction{
+                    cycles: 3,
+                    bytes: 1,
+                    addr_delegate: addressing::imp,
+                    op_delegate: OpDelegate::Implied(ops::php_implied),
+                    mnemonic: "PHP",
+                    addressing: "Implied",
+                }
+            }
+            
+            Opcode::ORA_imm => {
+                &Instruction{
+                    cycles: 2,
+                    bytes: 2,
+                    addr_delegate: addressing::imm,
+                    op_delegate: OpDelegate::Immediate(ops::ora_immediate),
+                    mnemonic: "ORA",
+                    addressing: "IMM",
+                }
+            }
+            
+            Opcode::ASL_acc => {
+                &Instruction{
+                    cycles: 2,
+                    bytes: 1,
+                    addr_delegate: addressing::acc,
+                    op_delegate: OpDelegate::Implied(ops::asl_implied),
+                    mnemonic: "ASL",
+                    addressing: "Accum",
+                }
+            }
+            
+            Opcode::ORA_abs => {
+                &Instruction{
+                    cycles: 4,
+                    bytes: 3,
+                    addr_delegate: addressing::abs,
+                    op_delegate: OpDelegate::Address(ops::ora_address),
+                    mnemonic: "ORA",
+                    addressing: "Absolute",
+                }
+            }
+            
+            Opcode::ASL_abs => {
+                &Instruction{
+                    cycles: 6,
+                    bytes: 3,
+                    addr_delegate: addressing::abs,
+                    op_delegate: OpDelegate::Address(ops::asl_address),
+                    mnemonic: "ASL",
+                    addressing: "Absolute",
+                }
+            }
+            
+            Opcode::BPL_rel => {
+                &Instruction{
+                    cycles: 2,
+                    bytes: 2,
+                    addr_delegate: addressing::rel,
+                    op_delegate: OpDelegate::Address(ops::bpl_address),
+                    mnemonic: "BPL",
+                    addressing: "Relative",
+                }
+            }
+            
+            Opcode::ORA_ind_y => {
+                &Instruction{
+                    cycles: 5,
+                    bytes: 2,
+                    addr_delegate: addressing::ind_y,
+                    op_delegate: OpDelegate::Address(ops::ora_address),
+                    mnemonic: "ORA",
+                    addressing: "(IND), Y",
+                }
+            }
+            
+            Opcode::ORA_zp_x => {
+                &Instruction{
+                    cycles: 4,
+                    bytes: 2,
+                    addr_delegate: addressing::zp_x,
+                    op_delegate: OpDelegate::Address(ops::ora_address),
+                    mnemonic: "ORA",
+                    addressing: "ZP, X",
+                }
+            }
+            
+            Opcode::ASL_zp_x => {
+                &Instruction{
+                    cycles: 6,
+                    bytes: 2,
+                    addr_delegate: addressing::zp_x,
+                    op_delegate: OpDelegate::Address(ops::asl_address),
+                    mnemonic: "ASL",
+                    addressing: "ZP, X",
+                }
+            }
+            
+            Opcode::CLC_imp => {
+                &Instruction{
+                    cycles: 2,
+                    bytes: 1,
+                    addr_delegate: addressing::imp,
+                    op_delegate: OpDelegate::Implied(ops::clc_implied),
+                    mnemonic: "CLC",
+                    addressing: "Implied",
+                }
+            }
+            
+            Opcode::ORA_abs_y => {
+                &Instruction{
+                    cycles: 4,
+                    bytes: 3,
+                    addr_delegate: addressing::abs_y,
+                    op_delegate: OpDelegate::Address(ops::ora_address),
+                    mnemonic: "ORA",
+                    addressing: "ABS, Y",
+                }
+            }
+            
+            Opcode::ORA_abs_x => {
+                &Instruction{
+                    cycles: 4,
+                    bytes: 3,
+                    addr_delegate: addressing::abs_x,
+                    op_delegate: OpDelegate::Address(ops::ora_address),
+                    mnemonic: "ORA",
+                    addressing: "ABS, X",
+                }
+            }
+            
+            Opcode::ASL_abs_x => {
+                &Instruction{
+                    cycles: 7,
+                    bytes: 3,
+                    addr_delegate: addressing::abs_x,
+                    op_delegate: OpDelegate::Address(ops::asl_address),
+                    mnemonic: "ASL",
+                    addressing: "ABS, X",
+                }
+            }
+            
+            Opcode::JSR_abs => {
+                &Instruction{
+                    cycles: 6,
+                    bytes: 3,
+                    addr_delegate: addressing::abs,
+                    op_delegate: OpDelegate::Address(ops::jsr_address),
+                    mnemonic: "JSR",
+                    addressing: "Absolute",
+                }
+            }
+            
+            Opcode::AND_ind_x => {
+                &Instruction{
+                    cycles: 6,
+                    bytes: 2,
+                    addr_delegate: addressing::ind_x,
+                    op_delegate: OpDelegate::Address(ops::and_address),
+                    mnemonic: "AND",
+                    addressing: "(IND, X)",
+                }
+            }
+            
+            Opcode::BIT_zp => {
+                &Instruction{
+                    cycles: 3,
+                    bytes: 2,
+                    addr_delegate: addressing::zp,
+                    op_delegate: OpDelegate::Address(ops::bit_address),
+                    mnemonic: "BIT",
+                    addressing: "ZP",
+                }
+            }
+            
+            Opcode::AND_zp => {
+                &Instruction{
+                    cycles: 3,
+                    bytes: 2,
+                    addr_delegate: addressing::zp,
+                    op_delegate: OpDelegate::Address(ops::and_address),
+                    mnemonic: "AND",
+                    addressing: "ZP",
+                }
+            }
+            
+            Opcode::ROL_zp => {
+                &Instruction{
+                    cycles: 5,
+                    bytes: 2,
+                    addr_delegate: addressing::zp,
+                    op_delegate: OpDelegate::Address(ops::rol_address),
+                    mnemonic: "ROL",
+                    addressing: "ZP",
+                }
+            }
+            
+            Opcode::PLP_imp => {
+                &Instruction{
+                    cycles: 4,
+                    bytes: 1,
+                    addr_delegate: addressing::imp,
+                    op_delegate: OpDelegate::Implied(ops::plp_implied),
+                    mnemonic: "PLP",
+                    addressing: "Implied",
+                }
+            }
+            
+            Opcode::AND_imm => {
+                &Instruction{
+                    cycles: 2,
+                    bytes: 2,
+                    addr_delegate: addressing::imm,
+                    op_delegate: OpDelegate::Immediate(ops::and_immediate),
+                    mnemonic: "AND",
+                    addressing: "IMM",
+                }
+            }
+            
+            Opcode::ROL_acc => {
+                &Instruction{
+                    cycles: 2,
+                    bytes: 1,
+                    addr_delegate: addressing::acc,
+                    op_delegate: OpDelegate::Implied(ops::rol_implied),
+                    mnemonic: "ROL",
+                    addressing: "Accum",
+                }
+            }
+            
+            Opcode::BIT_abs => {
+                &Instruction{
+                    cycles: 4,
+                    bytes: 3,
+                    addr_delegate: addressing::abs,
+                    op_delegate: OpDelegate::Address(ops::bit_address),
+                    mnemonic: "BIT",
+                    addressing: "Absolute",
+                }
+            }
+            
+            Opcode::AND_abs => {
+                &Instruction{
+                    cycles: 4,
+                    bytes: 3,
+                    addr_delegate: addressing::abs,
+                    op_delegate: OpDelegate::Address(ops::and_address),
+                    mnemonic: "AND",
+                    addressing: "Absolute",
+                }
+            }
+            
+            Opcode::ROL_abs => {
+                &Instruction{
+                    cycles: 6,
+                    bytes: 3,
+                    addr_delegate: addressing::abs,
+                    op_delegate: OpDelegate::Address(ops::rol_address),
+                    mnemonic: "ROL",
+                    addressing: "Absolute",
+                }
+            }
+            
+            Opcode::BMI_rel => {
+                &Instruction{
+                    cycles: 2,
+                    bytes: 2,
+                    addr_delegate: addressing::rel,
+                    op_delegate: OpDelegate::Address(ops::bmi_address),
+                    mnemonic: "BMI",
+                    addressing: "Relative",
+                }
+            }
+            
+            Opcode::AND_ind_y => {
+                &Instruction{
+                    cycles: 5,
+                    bytes: 2,
+                    addr_delegate: addressing::ind_y,
+                    op_delegate: OpDelegate::Address(ops::and_address),
+                    mnemonic: "AND",
+                    addressing: "(IND), Y",
+                }
+            }
+            
+            Opcode::AND_zp_x => {
+                &Instruction{
+                    cycles: 4,
+                    bytes: 2,
+                    addr_delegate: addressing::zp_x,
+                    op_delegate: OpDelegate::Address(ops::and_address),
+                    mnemonic: "AND",
+                    addressing: "ZP, X",
+                }
+            }
+            
+            Opcode::ROL_zp_x => {
+                &Instruction{
+                    cycles: 6,
+                    bytes: 2,
+                    addr_delegate: addressing::zp_x,
+                    op_delegate: OpDelegate::Address(ops::rol_address),
+                    mnemonic: "ROL",
+                    addressing: "ZP, X",
+                }
+            }
+            
+            Opcode::SEC_imp => {
+                &Instruction{
+                    cycles: 2,
+                    bytes: 1,
+                    addr_delegate: addressing::imp,
+                    op_delegate: OpDelegate::Implied(ops::sec_implied),
+                    mnemonic: "SEC",
+                    addressing: "Implied",
+                }
+            }
+            
+            Opcode::AND_abs_y => {
+                &Instruction{
+                    cycles: 4,
+                    bytes: 3,
+                    addr_delegate: addressing::abs_y,
+                    op_delegate: OpDelegate::Address(ops::and_address),
+                    mnemonic: "AND",
+                    addressing: "ABS, Y",
+                }
+            }
+            
+            Opcode::AND_abs_x => {
+                &Instruction{
+                    cycles: 4,
+                    bytes: 3,
+                    addr_delegate: addressing::abs_x,
+                    op_delegate: OpDelegate::Address(ops::and_address),
+                    mnemonic: "AND",
+                    addressing: "ABS, X",
+                }
+            }
+            
+            Opcode::ROL_abs_x => {
+                &Instruction{
+                    cycles: 7,
+                    bytes: 3,
+                    addr_delegate: addressing::abs_x,
+                    op_delegate: OpDelegate::Address(ops::rol_address),
+                    mnemonic: "ROL",
+                    addressing: "ABS, X",
+                }
+            }
+            
+            Opcode::RTI_imp => {
+                &Instruction{
+                    cycles: 6,
+                    bytes: 1,
+                    addr_delegate: addressing::imp,
+                    op_delegate: OpDelegate::Implied(ops::rti_implied),
+                    mnemonic: "RTI",
+                    addressing: "Implied",
+                }
+            }
+            
+            Opcode::EOR_ind_x => {
+                &Instruction{
+                    cycles: 6,
+                    bytes: 2,
+                    addr_delegate: addressing::ind_x,
+                    op_delegate: OpDelegate::Address(ops::eor_address),
+                    mnemonic: "EOR",
+                    addressing: "(IND, X)",
+                }
+            }
+            
+            Opcode::EOR_zp => {
+                &Instruction{
+                    cycles: 3,
+                    bytes: 2,
+                    addr_delegate: addressing::zp,
+                    op_delegate: OpDelegate::Address(ops::eor_address),
+                    mnemonic: "EOR",
+                    addressing: "ZP",
+                }
+            }
+            
+            Opcode::LSR_zp => {
+                &Instruction{
+                    cycles: 5,
+                    bytes: 2,
+                    addr_delegate: addressing::zp,
+                    op_delegate: OpDelegate::Address(ops::lsr_address),
+                    mnemonic: "LSR",
+                    addressing: "ZP",
+                }
+            }
+            
+            Opcode::PHA_imp => {
+                &Instruction{
+                    cycles: 3,
+                    bytes: 1,
+                    addr_delegate: addressing::imp,
+                    op_delegate: OpDelegate::Implied(ops::pha_implied),
+                    mnemonic: "PHA",
+                    addressing: "Implied",
+                }
+            }
+            
+            Opcode::EOR_imm => {
+                &Instruction{
+                    cycles: 2,
+                    bytes: 2,
+                    addr_delegate: addressing::imm,
+                    op_delegate: OpDelegate::Immediate(ops::eor_immediate),
+                    mnemonic: "EOR",
+                    addressing: "IMM",
+                }
+            }
+            
+            Opcode::LSR_acc => {
+                &Instruction{
+                    cycles: 2,
+                    bytes: 1,
+                    addr_delegate: addressing::acc,
+                    op_delegate: OpDelegate::Implied(ops::lsr_implied),
+                    mnemonic: "LSR",
+                    addressing: "Accum",
+                }
+            }
+            
+            Opcode::JMP_abs => {
+                &Instruction{
+                    cycles: 3,
+                    bytes: 3,
+                    addr_delegate: addressing::abs,
+                    op_delegate: OpDelegate::Address(ops::jmp_address),
+                    mnemonic: "JMP",
+                    addressing: "Absolute",
+                }
+            }
+            
+            Opcode::EOR_abs => {
+                &Instruction{
+                    cycles: 4,
+                    bytes: 3,
+                    addr_delegate: addressing::abs,
+                    op_delegate: OpDelegate::Address(ops::eor_address),
+                    mnemonic: "EOR",
+                    addressing: "Absolute",
+                }
+            }
+            
+            Opcode::LSR_abs => {
+                &Instruction{
+                    cycles: 6,
+                    bytes: 3,
+                    addr_delegate: addressing::abs,
+                    op_delegate: OpDelegate::Address(ops::lsr_address),
+                    mnemonic: "LSR",
+                    addressing: "Absolute",
+                }
+            }
+            
+            Opcode::BVC_rel => {
+                &Instruction{
+                    cycles: 2,
+                    bytes: 2,
+                    addr_delegate: addressing::rel,
+                    op_delegate: OpDelegate::Address(ops::bvc_address),
+                    mnemonic: "BVC",
+                    addressing: "Relative",
+                }
+            }
+            
+            Opcode::EOR_ind_y => {
+                &Instruction{
+                    cycles: 5,
+                    bytes: 2,
+                    addr_delegate: addressing::ind_y,
+                    op_delegate: OpDelegate::Address(ops::eor_address),
+                    mnemonic: "EOR",
+                    addressing: "(IND), Y",
+                }
+            }
+            
+            Opcode::EOR_zp_x => {
+                &Instruction{
+                    cycles: 4,
+                    bytes: 2,
+                    addr_delegate: addressing::zp_x,
+                    op_delegate: OpDelegate::Address(ops::eor_address),
+                    mnemonic: "EOR",
+                    addressing: "ZP, X",
+                }
+            }
+            
+            Opcode::LSR_zp_x => {
+                &Instruction{
+                    cycles: 6,
+                    bytes: 2,
+                    addr_delegate: addressing::zp_x,
+                    op_delegate: OpDelegate::Address(ops::lsr_address),
+                    mnemonic: "LSR",
+                    addressing: "ZP, X",
+                }
+            }
+            
+            Opcode::CLI_imp => {
+                &Instruction{
+                    cycles: 2,
+                    bytes: 1,
+                    addr_delegate: addressing::imp,
+                    op_delegate: OpDelegate::Implied(ops::cli_implied),
+                    mnemonic: "CLI",
+                    addressing: "Implied",
+                }
+            }
+            
+            Opcode::EOR_abs_y => {
+                &Instruction{
+                    cycles: 4,
+                    bytes: 3,
+                    addr_delegate: addressing::abs_y,
+                    op_delegate: OpDelegate::Address(ops::eor_address),
+                    mnemonic: "EOR",
+                    addressing: "ABS, Y",
+                }
+            }
+            
+            Opcode::EOR_abs_x => {
+                &Instruction{
+                    cycles: 4,
+                    bytes: 3,
+                    addr_delegate: addressing::abs_x,
+                    op_delegate: OpDelegate::Address(ops::eor_address),
+                    mnemonic: "EOR",
+                    addressing: "ABS, X",
+                }
+            }
+            
+            Opcode::LSR_abs_x => {
+                &Instruction{
+                    cycles: 7,
+                    bytes: 3,
+                    addr_delegate: addressing::abs_x,
+                    op_delegate: OpDelegate::Address(ops::lsr_address),
+                    mnemonic: "LSR",
+                    addressing: "ABS, X",
+                }
+            }
+            
+            Opcode::RTS_imp => {
+                &Instruction{
+                    cycles: 6,
+                    bytes: 1,
+                    addr_delegate: addressing::imp,
+                    op_delegate: OpDelegate::Implied(ops::rts_implied),
+                    mnemonic: "RTS",
+                    addressing: "Implied",
+                }
+            }
+            
+            Opcode::ADC_ind_x => {
+                &Instruction{
+                    cycles: 6,
+                    bytes: 2,
+                    addr_delegate: addressing::ind_x,
+                    op_delegate: OpDelegate::Address(ops::adc_address),
+                    mnemonic: "ADC",
+                    addressing: "(IND, X)",
+                }
+            }
+            
+            Opcode::ADC_zp => {
+                &Instruction{
+                    cycles: 3,
+                    bytes: 2,
+                    addr_delegate: addressing::zp,
+                    op_delegate: OpDelegate::Address(ops::adc_address),
+                    mnemonic: "ADC",
+                    addressing: "ZP",
+                }
+            }
+            
+            Opcode::ROR_zp => {
+                &Instruction{
+                    cycles: 5,
+                    bytes: 2,
+                    addr_delegate: addressing::zp,
+                    op_delegate: OpDelegate::Address(ops::ror_address),
+                    mnemonic: "ROR",
+                    addressing: "ZP",
+                }
+            }
+            
+            Opcode::PLA_imp => {
+                &Instruction{
+                    cycles: 4,
+                    bytes: 1,
+                    addr_delegate: addressing::imp,
+                    op_delegate: OpDelegate::Implied(ops::pla_implied),
+                    mnemonic: "PLA",
+                    addressing: "Implied",
+                }
+            }
+            
+            Opcode::ADC_imm => {
+                &Instruction{
+                    cycles: 2,
+                    bytes: 2,
+                    addr_delegate: addressing::imm,
+                    op_delegate: OpDelegate::Immediate(ops::adc_immediate),
+                    mnemonic: "ADC",
+                    addressing: "IMM",
+                }
+            }
+            
+            Opcode::ROR_acc => {
+                &Instruction{
+                    cycles: 2,
+                    bytes: 1,
+                    addr_delegate: addressing::acc,
+                    op_delegate: OpDelegate::Implied(ops::ror_implied),
+                    mnemonic: "ROR",
+                    addressing: "Accum",
+                }
+            }
+            
+            Opcode::JMP_ind => {
+                &Instruction{
+                    cycles: 5,
+                    bytes: 3,
+                    addr_delegate: addressing::ind,
+                    op_delegate: OpDelegate::Address(ops::jmp_address),
+                    mnemonic: "JMP",
+                    addressing: "Indirect",
+                }
+            }
+            
+            Opcode::ADC_abs => {
+                &Instruction{
+                    cycles: 4,
+                    bytes: 3,
+                    addr_delegate: addressing::abs,
+                    op_delegate: OpDelegate::Address(ops::adc_address),
+                    mnemonic: "ADC",
+                    addressing: "Absolute",
+                }
+            }
+            
+            Opcode::ROR_abs => {
+                &Instruction{
+                    cycles: 6,
+                    bytes: 3,
+                    addr_delegate: addressing::abs,
+                    op_delegate: OpDelegate::Address(ops::ror_address),
+                    mnemonic: "ROR",
+                    addressing: "Absolute",
+                }
+            }
+            
+            Opcode::BVS_rel => {
+                &Instruction{
+                    cycles: 2,
+                    bytes: 2,
+                    addr_delegate: addressing::rel,
+                    op_delegate: OpDelegate::Address(ops::bvs_address),
+                    mnemonic: "BVS",
+                    addressing: "Relative",
+                }
+            }
+            
+            Opcode::ADC_ind_y => {
+                &Instruction{
+                    cycles: 5,
+                    bytes: 2,
+                    addr_delegate: addressing::ind_y,
+                    op_delegate: OpDelegate::Address(ops::adc_address),
+                    mnemonic: "ADC",
+                    addressing: "(IND), Y",
+                }
+            }
+            
+            Opcode::ADC_zp_x => {
+                &Instruction{
+                    cycles: 4,
+                    bytes: 2,
+                    addr_delegate: addressing::zp_x,
+                    op_delegate: OpDelegate::Address(ops::adc_address),
+                    mnemonic: "ADC",
+                    addressing: "ZP, X",
+                }
+            }
+            
+            Opcode::ROR_zp_x => {
+                &Instruction{
+                    cycles: 6,
+                    bytes: 2,
+                    addr_delegate: addressing::zp_x,
+                    op_delegate: OpDelegate::Address(ops::ror_address),
+                    mnemonic: "ROR",
+                    addressing: "ZP, X",
+                }
+            }
+            
+            Opcode::SEI_imp => {
+                &Instruction{
+                    cycles: 2,
+                    bytes: 1,
+                    addr_delegate: addressing::imp,
+                    op_delegate: OpDelegate::Implied(ops::sei_implied),
+                    mnemonic: "SEI",
+                    addressing: "Implied",
+                }
+            }
+            
+            Opcode::ADC_abs_y => {
+                &Instruction{
+                    cycles: 4,
+                    bytes: 3,
+                    addr_delegate: addressing::abs_y,
+                    op_delegate: OpDelegate::Address(ops::adc_address),
+                    mnemonic: "ADC",
+                    addressing: "ABS, Y",
+                }
+            }
+            
+            Opcode::ADC_abs_x => {
+                &Instruction{
+                    cycles: 4,
+                    bytes: 3,
+                    addr_delegate: addressing::abs_x,
+                    op_delegate: OpDelegate::Address(ops::adc_address),
+                    mnemonic: "ADC",
+                    addressing: "ABS, X",
+                }
+            }
+            
+            Opcode::ROR_abs_x => {
+                &Instruction{
+                    cycles: 7,
+                    bytes: 3,
+                    addr_delegate: addressing::abs_x,
+                    op_delegate: OpDelegate::Address(ops::ror_address),
+                    mnemonic: "ROR",
+                    addressing: "ABS, X",
+                }
+            }
+            
+            Opcode::STA_ind_x => {
+                &Instruction{
+                    cycles: 6,
+                    bytes: 2,
+                    addr_delegate: addressing::ind_x,
+                    op_delegate: OpDelegate::Address(ops::sta_address),
+                    mnemonic: "STA",
+                    addressing: "(IND, X)",
+                }
+            }
+            
+            Opcode::STY_zp => {
+                &Instruction{
+                    cycles: 3,
+                    bytes: 2,
+                    addr_delegate: addressing::zp,
+                    op_delegate: OpDelegate::Address(ops::sty_address),
+                    mnemonic: "STY",
+                    addressing: "ZP",
+                }
+            }
+            
+            Opcode::STA_zp => {
+                &Instruction{
+                    cycles: 3,
+                    bytes: 2,
+                    addr_delegate: addressing::zp,
+                    op_delegate: OpDelegate::Address(ops::sta_address),
                     mnemonic: "STA",
                     addressing: "ZP",
                 }
-            ),
-            _ => panic!("Unimplemented opcode 0x{:02X} = {:?}", *self as u8, self)
-        }
-    }
-}
-
-pub struct Instruction {
-    pub cycles: usize,
-    pub bytes: usize,
-    pub addr_delegate: AddrDelegate,
-    pub op_delegate: OpDelegate,
-    pub mnemonic: &'static str,
-    pub addressing: &'static str,
-}
-
-pub enum Operand {
-    Implied,
-    Immediate(u8),
-    Address(u16),
-}
-
-pub enum OpDelegate {
-    Implied(OpDelegateImplied),
-    Immediate(OpDelegateImmediate),
-    Address(OpDelegateAddress),
-}
-
-impl OpDelegate {
-    pub fn implied(&self) -> Option<&OpDelegateImplied> {
-        if let Self::Implied(delegate) = self {
-            Some(&delegate)
-        } else {
-            None
-        }
-    }
-
-    pub fn immediate(&self) -> Option<&OpDelegateImmediate> {
-        if let Self::Immediate(delegate) = self {
-            Some(&delegate)
-        } else {
-            None
-        }
-    }
-
-    pub fn address(&self) -> Option<&OpDelegateAddress> {
-        if let Self::Address(delegate) = self {
-            Some(&delegate)
-        } else {
-            None
-        }
-    }
-}
-
-pub enum AddrDelegateReturn {
-    Yield(BusMessage),
-    Return(Operand),
-}
-
-pub type AddrDelegate = fn(&mut CPURegisters, usize) -> AddrDelegateReturn;
-pub type OpDelegateImplied = fn(&mut CPURegisters, usize) -> BusMessage;
-pub type OpDelegateImmediate = fn(&mut CPURegisters, u8, usize) -> BusMessage;
-pub type OpDelegateAddress = fn(&mut CPURegisters, u16, usize) -> BusMessage;
-
-pub static RESET_INSTRUCTION: Instruction = Instruction {
-    cycles: 8,
-    bytes: 0,
-    addr_delegate: addressing::implied, // addressing should be skipped altogether
-    op_delegate: OpDelegate::Address(ops::reset),
-    mnemonic: "RESET",
-    addressing: "Reset Vector",
-};
-
-mod addressing {
-    use crate::cpu::{AddrDelegateReturn, CPURegisters, Operand};
-
-    pub fn implied(_regs: &mut CPURegisters, _cycle: usize) -> AddrDelegateReturn {
-        AddrDelegateReturn::Return(Operand::Implied)
-    }
-
-    pub fn immediate(regs: &mut CPURegisters, _cycle: usize) -> AddrDelegateReturn {
-        AddrDelegateReturn::Return(Operand::Immediate(regs.o1))
-    }
-
-    pub fn zero_page(regs: &mut CPURegisters, _cycle: usize) -> AddrDelegateReturn {
-        AddrDelegateReturn::Return(Operand::Address(regs.o1 as u16))
-    }
-}
-
-mod ops {
-    use crate::cpu::{CPURegisters, CPUFlags};
-    use crate::BusMessage;
-    use crate::BusMessage::*;
-
-    pub fn lda_imm(regs: &mut CPURegisters, immediate: u8, _cycle: usize) -> BusMessage {
-        regs.a = immediate;
-        regs.set_flag(CPUFlags::Z, regs.a == 0);
-        regs.set_flag(CPUFlags::N, regs.a & 0x80 == 0x80);
-        Nop
-    }
-
-    pub fn sta_addr(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMessage {
-        match cycle {
-            1 => {
-                Write{addr: address, data: regs.a}
-            },
-            _ => Nop,
-        }
-    }
-
-    pub fn reset(regs: &mut CPURegisters, reset_vector: u16, cycle: usize) -> BusMessage {
-        match cycle {
-            x if x < 6 => Nop,
-            6 => {
-                regs.set_flag(CPUFlags::I, true);
-                Read{addr: reset_vector}
-            },
-            7 => {
-                regs.pc |= regs.data as u16; // set low byte of new PC address
-                Read{addr: reset_vector+1}
-            },
-            8 => {
-                regs.pc |= (regs.data as u16) << 8; // set high byte of ne PC address
-
-                // reset rest of the registers
-                regs.a = 0x00;
-                regs.x = 0x00;
-                regs.y = 0x00;
-                regs.sp = 0xFD; // default address for stack pointer
-                regs.status = 0x24; // 3rd bit unused and always high, I flag still set
-
-                // also the relevant helpers
-                regs.op = 0x00;
-                regs.o1 = 0x00;
-                regs.o2 = 0x00;
-                
-                Read{addr: regs.pc}
-            },
-            _ => panic!("Impossible cycle count in match, reset takes 8 cycles"),
+            }
+            
+            Opcode::STX_zp => {
+                &Instruction{
+                    cycles: 3,
+                    bytes: 2,
+                    addr_delegate: addressing::zp,
+                    op_delegate: OpDelegate::Address(ops::stx_address),
+                    mnemonic: "STX",
+                    addressing: "ZP",
+                }
+            }
+            
+            Opcode::DEY_imp => {
+                &Instruction{
+                    cycles: 2,
+                    bytes: 1,
+                    addr_delegate: addressing::imp,
+                    op_delegate: OpDelegate::Implied(ops::dey_implied),
+                    mnemonic: "DEY",
+                    addressing: "Implied",
+                }
+            }
+            
+            Opcode::TXA_imp => {
+                &Instruction{
+                    cycles: 2,
+                    bytes: 1,
+                    addr_delegate: addressing::imp,
+                    op_delegate: OpDelegate::Implied(ops::txa_implied),
+                    mnemonic: "TXA",
+                    addressing: "Implied",
+                }
+            }
+            
+            Opcode::STY_abs => {
+                &Instruction{
+                    cycles: 4,
+                    bytes: 3,
+                    addr_delegate: addressing::abs,
+                    op_delegate: OpDelegate::Address(ops::sty_address),
+                    mnemonic: "STY",
+                    addressing: "Absolute",
+                }
+            }
+            
+            Opcode::STA_abs => {
+                &Instruction{
+                    cycles: 4,
+                    bytes: 3,
+                    addr_delegate: addressing::abs,
+                    op_delegate: OpDelegate::Address(ops::sta_address),
+                    mnemonic: "STA",
+                    addressing: "Absolute",
+                }
+            }
+            
+            Opcode::STX_abs => {
+                &Instruction{
+                    cycles: 4,
+                    bytes: 3,
+                    addr_delegate: addressing::abs,
+                    op_delegate: OpDelegate::Address(ops::stx_address),
+                    mnemonic: "STX",
+                    addressing: "Absolute",
+                }
+            }
+            
+            Opcode::BCC_rel => {
+                &Instruction{
+                    cycles: 2,
+                    bytes: 2,
+                    addr_delegate: addressing::rel,
+                    op_delegate: OpDelegate::Address(ops::bcc_address),
+                    mnemonic: "BCC",
+                    addressing: "Relative",
+                }
+            }
+            
+            Opcode::STA_ind_y => {
+                &Instruction{
+                    cycles: 6,
+                    bytes: 2,
+                    addr_delegate: addressing::ind_y,
+                    op_delegate: OpDelegate::Address(ops::sta_address),
+                    mnemonic: "STA",
+                    addressing: "(IND), Y",
+                }
+            }
+            
+            Opcode::STY_zp_x => {
+                &Instruction{
+                    cycles: 4,
+                    bytes: 2,
+                    addr_delegate: addressing::zp_x,
+                    op_delegate: OpDelegate::Address(ops::sty_address),
+                    mnemonic: "STY",
+                    addressing: "ZP, X",
+                }
+            }
+            
+            Opcode::STA_zp_x => {
+                &Instruction{
+                    cycles: 4,
+                    bytes: 2,
+                    addr_delegate: addressing::zp_x,
+                    op_delegate: OpDelegate::Address(ops::sta_address),
+                    mnemonic: "STA",
+                    addressing: "ZP, X",
+                }
+            }
+            
+            Opcode::STX_zp_y => {
+                &Instruction{
+                    cycles: 4,
+                    bytes: 2,
+                    addr_delegate: addressing::zp_y,
+                    op_delegate: OpDelegate::Address(ops::stx_address),
+                    mnemonic: "STX",
+                    addressing: "ZP, Y",
+                }
+            }
+            
+            Opcode::TYA_imp => {
+                &Instruction{
+                    cycles: 2,
+                    bytes: 1,
+                    addr_delegate: addressing::imp,
+                    op_delegate: OpDelegate::Implied(ops::tya_implied),
+                    mnemonic: "TYA",
+                    addressing: "Implied",
+                }
+            }
+            
+            Opcode::STA_abs_y => {
+                &Instruction{
+                    cycles: 5,
+                    bytes: 3,
+                    addr_delegate: addressing::abs_y,
+                    op_delegate: OpDelegate::Address(ops::sta_address),
+                    mnemonic: "STA",
+                    addressing: "ABS, Y",
+                }
+            }
+            
+            Opcode::TXS_imp => {
+                &Instruction{
+                    cycles: 2,
+                    bytes: 1,
+                    addr_delegate: addressing::imp,
+                    op_delegate: OpDelegate::Implied(ops::txs_implied),
+                    mnemonic: "TXS",
+                    addressing: "Implied",
+                }
+            }
+            
+            Opcode::STA_abs_x => {
+                &Instruction{
+                    cycles: 5,
+                    bytes: 3,
+                    addr_delegate: addressing::abs_x,
+                    op_delegate: OpDelegate::Address(ops::sta_address),
+                    mnemonic: "STA",
+                    addressing: "ABS, X",
+                }
+            }
+            
+            Opcode::LDY_imm => {
+                &Instruction{
+                    cycles: 2,
+                    bytes: 2,
+                    addr_delegate: addressing::imm,
+                    op_delegate: OpDelegate::Immediate(ops::ldy_immediate),
+                    mnemonic: "LDY",
+                    addressing: "IMM",
+                }
+            }
+            
+            Opcode::LDA_ind_x => {
+                &Instruction{
+                    cycles: 6,
+                    bytes: 2,
+                    addr_delegate: addressing::ind_x,
+                    op_delegate: OpDelegate::Address(ops::lda_address),
+                    mnemonic: "LDA",
+                    addressing: "(IND, X)",
+                }
+            }
+            
+            Opcode::LDX_imm => {
+                &Instruction{
+                    cycles: 2,
+                    bytes: 2,
+                    addr_delegate: addressing::imm,
+                    op_delegate: OpDelegate::Immediate(ops::ldx_immediate),
+                    mnemonic: "LDX",
+                    addressing: "IMM",
+                }
+            }
+            
+            Opcode::LDY_zp => {
+                &Instruction{
+                    cycles: 3,
+                    bytes: 2,
+                    addr_delegate: addressing::zp,
+                    op_delegate: OpDelegate::Address(ops::ldy_address),
+                    mnemonic: "LDY",
+                    addressing: "ZP",
+                }
+            }
+            
+            Opcode::LDA_zp => {
+                &Instruction{
+                    cycles: 3,
+                    bytes: 2,
+                    addr_delegate: addressing::zp,
+                    op_delegate: OpDelegate::Address(ops::lda_address),
+                    mnemonic: "LDA",
+                    addressing: "ZP",
+                }
+            }
+            
+            Opcode::LDX_zp => {
+                &Instruction{
+                    cycles: 3,
+                    bytes: 2,
+                    addr_delegate: addressing::zp,
+                    op_delegate: OpDelegate::Address(ops::ldx_address),
+                    mnemonic: "LDX",
+                    addressing: "ZP",
+                }
+            }
+            
+            Opcode::TAY_imp => {
+                &Instruction{
+                    cycles: 2,
+                    bytes: 1,
+                    addr_delegate: addressing::imp,
+                    op_delegate: OpDelegate::Implied(ops::tay_implied),
+                    mnemonic: "TAY",
+                    addressing: "Implied",
+                }
+            }
+            
+            Opcode::LDA_imm => {
+                &Instruction{
+                    cycles: 2,
+                    bytes: 2,
+                    addr_delegate: addressing::imm,
+                    op_delegate: OpDelegate::Immediate(ops::lda_immediate),
+                    mnemonic: "LDA",
+                    addressing: "IMM",
+                }
+            }
+            
+            Opcode::TAX_imp => {
+                &Instruction{
+                    cycles: 2,
+                    bytes: 1,
+                    addr_delegate: addressing::imp,
+                    op_delegate: OpDelegate::Implied(ops::tax_implied),
+                    mnemonic: "TAX",
+                    addressing: "Implied",
+                }
+            }
+            
+            Opcode::LDY_abs => {
+                &Instruction{
+                    cycles: 4,
+                    bytes: 3,
+                    addr_delegate: addressing::abs,
+                    op_delegate: OpDelegate::Address(ops::ldy_address),
+                    mnemonic: "LDY",
+                    addressing: "Absolute",
+                }
+            }
+            
+            Opcode::LDA_abs => {
+                &Instruction{
+                    cycles: 4,
+                    bytes: 3,
+                    addr_delegate: addressing::abs,
+                    op_delegate: OpDelegate::Address(ops::lda_address),
+                    mnemonic: "LDA",
+                    addressing: "Absolute",
+                }
+            }
+            
+            Opcode::LDX_abs => {
+                &Instruction{
+                    cycles: 4,
+                    bytes: 3,
+                    addr_delegate: addressing::abs,
+                    op_delegate: OpDelegate::Address(ops::ldx_address),
+                    mnemonic: "LDX",
+                    addressing: "Absolute",
+                }
+            }
+            
+            Opcode::BCS_rel => {
+                &Instruction{
+                    cycles: 2,
+                    bytes: 2,
+                    addr_delegate: addressing::rel,
+                    op_delegate: OpDelegate::Address(ops::bcs_address),
+                    mnemonic: "BCS",
+                    addressing: "Relative",
+                }
+            }
+            
+            Opcode::LDA_ind_y => {
+                &Instruction{
+                    cycles: 5,
+                    bytes: 2,
+                    addr_delegate: addressing::ind_y,
+                    op_delegate: OpDelegate::Address(ops::lda_address),
+                    mnemonic: "LDA",
+                    addressing: "(IND), Y",
+                }
+            }
+            
+            Opcode::LDY_zp_x => {
+                &Instruction{
+                    cycles: 4,
+                    bytes: 2,
+                    addr_delegate: addressing::zp_x,
+                    op_delegate: OpDelegate::Address(ops::ldy_address),
+                    mnemonic: "LDY",
+                    addressing: "ZP, X",
+                }
+            }
+            
+            Opcode::LDA_zp_x => {
+                &Instruction{
+                    cycles: 4,
+                    bytes: 2,
+                    addr_delegate: addressing::zp_x,
+                    op_delegate: OpDelegate::Address(ops::lda_address),
+                    mnemonic: "LDA",
+                    addressing: "ZP, X",
+                }
+            }
+            
+            Opcode::LDX_zp_y => {
+                &Instruction{
+                    cycles: 4,
+                    bytes: 2,
+                    addr_delegate: addressing::zp_y,
+                    op_delegate: OpDelegate::Address(ops::ldx_address),
+                    mnemonic: "LDX",
+                    addressing: "ZP, Y",
+                }
+            }
+            
+            Opcode::CLV_imp => {
+                &Instruction{
+                    cycles: 2,
+                    bytes: 1,
+                    addr_delegate: addressing::imp,
+                    op_delegate: OpDelegate::Implied(ops::clv_implied),
+                    mnemonic: "CLV",
+                    addressing: "Implied",
+                }
+            }
+            
+            Opcode::LDA_abs_y => {
+                &Instruction{
+                    cycles: 4,
+                    bytes: 3,
+                    addr_delegate: addressing::abs_y,
+                    op_delegate: OpDelegate::Address(ops::lda_address),
+                    mnemonic: "LDA",
+                    addressing: "ABS, Y",
+                }
+            }
+            
+            Opcode::TSX_imp => {
+                &Instruction{
+                    cycles: 2,
+                    bytes: 1,
+                    addr_delegate: addressing::imp,
+                    op_delegate: OpDelegate::Implied(ops::tsx_implied),
+                    mnemonic: "TSX",
+                    addressing: "Implied",
+                }
+            }
+            
+            Opcode::LDY_abs_x => {
+                &Instruction{
+                    cycles: 4,
+                    bytes: 3,
+                    addr_delegate: addressing::abs_x,
+                    op_delegate: OpDelegate::Address(ops::ldy_address),
+                    mnemonic: "LDY",
+                    addressing: "ABS, X",
+                }
+            }
+            
+            Opcode::LDA_abs_x => {
+                &Instruction{
+                    cycles: 4,
+                    bytes: 3,
+                    addr_delegate: addressing::abs_x,
+                    op_delegate: OpDelegate::Address(ops::lda_address),
+                    mnemonic: "LDA",
+                    addressing: "ABS, X",
+                }
+            }
+            
+            Opcode::LDX_abs_y => {
+                &Instruction{
+                    cycles: 4,
+                    bytes: 3,
+                    addr_delegate: addressing::abs_y,
+                    op_delegate: OpDelegate::Address(ops::ldx_address),
+                    mnemonic: "LDX",
+                    addressing: "ABS, Y",
+                }
+            }
+            
+            Opcode::CPY_imm => {
+                &Instruction{
+                    cycles: 2,
+                    bytes: 2,
+                    addr_delegate: addressing::imm,
+                    op_delegate: OpDelegate::Immediate(ops::cpy_immediate),
+                    mnemonic: "CPY",
+                    addressing: "IMM",
+                }
+            }
+            
+            Opcode::CMP_ind_x => {
+                &Instruction{
+                    cycles: 6,
+                    bytes: 2,
+                    addr_delegate: addressing::ind_x,
+                    op_delegate: OpDelegate::Address(ops::cmp_address),
+                    mnemonic: "CMP",
+                    addressing: "(IND, X)",
+                }
+            }
+            
+            Opcode::CPY_zp => {
+                &Instruction{
+                    cycles: 3,
+                    bytes: 2,
+                    addr_delegate: addressing::zp,
+                    op_delegate: OpDelegate::Address(ops::cpy_address),
+                    mnemonic: "CPY",
+                    addressing: "ZP",
+                }
+            }
+            
+            Opcode::CMP_zp => {
+                &Instruction{
+                    cycles: 3,
+                    bytes: 2,
+                    addr_delegate: addressing::zp,
+                    op_delegate: OpDelegate::Address(ops::cmp_address),
+                    mnemonic: "CMP",
+                    addressing: "ZP",
+                }
+            }
+            
+            Opcode::DEC_zp => {
+                &Instruction{
+                    cycles: 5,
+                    bytes: 2,
+                    addr_delegate: addressing::zp,
+                    op_delegate: OpDelegate::Address(ops::dec_address),
+                    mnemonic: "DEC",
+                    addressing: "ZP",
+                }
+            }
+            
+            Opcode::INY_imp => {
+                &Instruction{
+                    cycles: 2,
+                    bytes: 1,
+                    addr_delegate: addressing::imp,
+                    op_delegate: OpDelegate::Implied(ops::iny_implied),
+                    mnemonic: "INY",
+                    addressing: "Implied",
+                }
+            }
+            
+            Opcode::CMP_imm => {
+                &Instruction{
+                    cycles: 2,
+                    bytes: 2,
+                    addr_delegate: addressing::imm,
+                    op_delegate: OpDelegate::Immediate(ops::cmp_immediate),
+                    mnemonic: "CMP",
+                    addressing: "IMM",
+                }
+            }
+            
+            Opcode::DEX_imp => {
+                &Instruction{
+                    cycles: 2,
+                    bytes: 1,
+                    addr_delegate: addressing::imp,
+                    op_delegate: OpDelegate::Implied(ops::dex_implied),
+                    mnemonic: "DEX",
+                    addressing: "Implied",
+                }
+            }
+            
+            Opcode::CPY_abs => {
+                &Instruction{
+                    cycles: 4,
+                    bytes: 3,
+                    addr_delegate: addressing::abs,
+                    op_delegate: OpDelegate::Address(ops::cpy_address),
+                    mnemonic: "CPY",
+                    addressing: "Absolute",
+                }
+            }
+            
+            Opcode::CMP_abs => {
+                &Instruction{
+                    cycles: 4,
+                    bytes: 3,
+                    addr_delegate: addressing::abs,
+                    op_delegate: OpDelegate::Address(ops::cmp_address),
+                    mnemonic: "CMP",
+                    addressing: "Absolute",
+                }
+            }
+            
+            Opcode::DEC_abs => {
+                &Instruction{
+                    cycles: 6,
+                    bytes: 3,
+                    addr_delegate: addressing::abs,
+                    op_delegate: OpDelegate::Address(ops::dec_address),
+                    mnemonic: "DEC",
+                    addressing: "Absolute",
+                }
+            }
+            
+            Opcode::BNE_rel => {
+                &Instruction{
+                    cycles: 2,
+                    bytes: 2,
+                    addr_delegate: addressing::rel,
+                    op_delegate: OpDelegate::Address(ops::bne_address),
+                    mnemonic: "BNE",
+                    addressing: "Relative",
+                }
+            }
+            
+            Opcode::CMP_ind_y => {
+                &Instruction{
+                    cycles: 5,
+                    bytes: 2,
+                    addr_delegate: addressing::ind_y,
+                    op_delegate: OpDelegate::Address(ops::cmp_address),
+                    mnemonic: "CMP",
+                    addressing: "(IND), Y",
+                }
+            }
+            
+            Opcode::CMP_zp_x => {
+                &Instruction{
+                    cycles: 4,
+                    bytes: 2,
+                    addr_delegate: addressing::zp_x,
+                    op_delegate: OpDelegate::Address(ops::cmp_address),
+                    mnemonic: "CMP",
+                    addressing: "ZP, X",
+                }
+            }
+            
+            Opcode::DEC_zp_x => {
+                &Instruction{
+                    cycles: 6,
+                    bytes: 2,
+                    addr_delegate: addressing::zp_x,
+                    op_delegate: OpDelegate::Address(ops::dec_address),
+                    mnemonic: "DEC",
+                    addressing: "ZP, X",
+                }
+            }
+            
+            Opcode::CLD_imp => {
+                &Instruction{
+                    cycles: 2,
+                    bytes: 1,
+                    addr_delegate: addressing::imp,
+                    op_delegate: OpDelegate::Implied(ops::cld_implied),
+                    mnemonic: "CLD",
+                    addressing: "Implied",
+                }
+            }
+            
+            Opcode::CMP_abs_y => {
+                &Instruction{
+                    cycles: 4,
+                    bytes: 3,
+                    addr_delegate: addressing::abs_y,
+                    op_delegate: OpDelegate::Address(ops::cmp_address),
+                    mnemonic: "CMP",
+                    addressing: "ABS, Y",
+                }
+            }
+            
+            Opcode::CMP_abs_x => {
+                &Instruction{
+                    cycles: 4,
+                    bytes: 3,
+                    addr_delegate: addressing::abs_x,
+                    op_delegate: OpDelegate::Address(ops::cmp_address),
+                    mnemonic: "CMP",
+                    addressing: "ABS, X",
+                }
+            }
+            
+            Opcode::DEC_abs_x => {
+                &Instruction{
+                    cycles: 7,
+                    bytes: 3,
+                    addr_delegate: addressing::abs_x,
+                    op_delegate: OpDelegate::Address(ops::dec_address),
+                    mnemonic: "DEC",
+                    addressing: "ABS, X",
+                }
+            }
+            
+            Opcode::CPX_imm => {
+                &Instruction{
+                    cycles: 2,
+                    bytes: 2,
+                    addr_delegate: addressing::imm,
+                    op_delegate: OpDelegate::Immediate(ops::cpx_immediate),
+                    mnemonic: "CPX",
+                    addressing: "IMM",
+                }
+            }
+            
+            Opcode::SBC_ind_x => {
+                &Instruction{
+                    cycles: 6,
+                    bytes: 2,
+                    addr_delegate: addressing::ind_x,
+                    op_delegate: OpDelegate::Address(ops::sbc_address),
+                    mnemonic: "SBC",
+                    addressing: "(IND, X)",
+                }
+            }
+            
+            Opcode::CPX_zp => {
+                &Instruction{
+                    cycles: 3,
+                    bytes: 2,
+                    addr_delegate: addressing::zp,
+                    op_delegate: OpDelegate::Address(ops::cpx_address),
+                    mnemonic: "CPX",
+                    addressing: "ZP",
+                }
+            }
+            
+            Opcode::SBC_zp => {
+                &Instruction{
+                    cycles: 3,
+                    bytes: 2,
+                    addr_delegate: addressing::zp,
+                    op_delegate: OpDelegate::Address(ops::sbc_address),
+                    mnemonic: "SBC",
+                    addressing: "ZP",
+                }
+            }
+            
+            Opcode::INC_zp => {
+                &Instruction{
+                    cycles: 5,
+                    bytes: 2,
+                    addr_delegate: addressing::zp,
+                    op_delegate: OpDelegate::Address(ops::inc_address),
+                    mnemonic: "INC",
+                    addressing: "ZP",
+                }
+            }
+            
+            Opcode::INX_imp => {
+                &Instruction{
+                    cycles: 2,
+                    bytes: 1,
+                    addr_delegate: addressing::imp,
+                    op_delegate: OpDelegate::Implied(ops::inx_implied),
+                    mnemonic: "INX",
+                    addressing: "Implied",
+                }
+            }
+            
+            Opcode::SBC_imm => {
+                &Instruction{
+                    cycles: 2,
+                    bytes: 2,
+                    addr_delegate: addressing::imm,
+                    op_delegate: OpDelegate::Immediate(ops::sbc_immediate),
+                    mnemonic: "SBC",
+                    addressing: "IMM",
+                }
+            }
+            
+            Opcode::NOP_imp => {
+                &Instruction{
+                    cycles: 2,
+                    bytes: 1,
+                    addr_delegate: addressing::imp,
+                    op_delegate: OpDelegate::Implied(ops::nop_implied),
+                    mnemonic: "NOP",
+                    addressing: "Implied",
+                }
+            }
+            
+            Opcode::CPX_abs => {
+                &Instruction{
+                    cycles: 4,
+                    bytes: 3,
+                    addr_delegate: addressing::abs,
+                    op_delegate: OpDelegate::Address(ops::cpx_address),
+                    mnemonic: "CPX",
+                    addressing: "Absolute",
+                }
+            }
+            
+            Opcode::SBC_abs => {
+                &Instruction{
+                    cycles: 4,
+                    bytes: 3,
+                    addr_delegate: addressing::abs,
+                    op_delegate: OpDelegate::Address(ops::sbc_address),
+                    mnemonic: "SBC",
+                    addressing: "Absolute",
+                }
+            }
+            
+            Opcode::INC_abs => {
+                &Instruction{
+                    cycles: 6,
+                    bytes: 3,
+                    addr_delegate: addressing::abs,
+                    op_delegate: OpDelegate::Address(ops::inc_address),
+                    mnemonic: "INC",
+                    addressing: "Absolute",
+                }
+            }
+            
+            Opcode::BEQ_rel => {
+                &Instruction{
+                    cycles: 2,
+                    bytes: 2,
+                    addr_delegate: addressing::rel,
+                    op_delegate: OpDelegate::Address(ops::beq_address),
+                    mnemonic: "BEQ",
+                    addressing: "Relative",
+                }
+            }
+            
+            Opcode::SBC_ind_y => {
+                &Instruction{
+                    cycles: 5,
+                    bytes: 2,
+                    addr_delegate: addressing::ind_y,
+                    op_delegate: OpDelegate::Address(ops::sbc_address),
+                    mnemonic: "SBC",
+                    addressing: "(IND), Y",
+                }
+            }
+            
+            Opcode::SBC_zp_x => {
+                &Instruction{
+                    cycles: 4,
+                    bytes: 2,
+                    addr_delegate: addressing::zp_x,
+                    op_delegate: OpDelegate::Address(ops::sbc_address),
+                    mnemonic: "SBC",
+                    addressing: "ZP, X",
+                }
+            }
+            
+            Opcode::INC_zp_x => {
+                &Instruction{
+                    cycles: 6,
+                    bytes: 2,
+                    addr_delegate: addressing::zp_x,
+                    op_delegate: OpDelegate::Address(ops::inc_address),
+                    mnemonic: "INC",
+                    addressing: "ZP, X",
+                }
+            }
+            
+            Opcode::SED_imp => {
+                &Instruction{
+                    cycles: 2,
+                    bytes: 1,
+                    addr_delegate: addressing::imp,
+                    op_delegate: OpDelegate::Implied(ops::sed_implied),
+                    mnemonic: "SED",
+                    addressing: "Implied",
+                }
+            }
+            
+            Opcode::SBC_abs_y => {
+                &Instruction{
+                    cycles: 4,
+                    bytes: 3,
+                    addr_delegate: addressing::abs_y,
+                    op_delegate: OpDelegate::Address(ops::sbc_address),
+                    mnemonic: "SBC",
+                    addressing: "ABS, Y",
+                }
+            }
+            
+            Opcode::SBC_abs_x => {
+                &Instruction{
+                    cycles: 4,
+                    bytes: 3,
+                    addr_delegate: addressing::abs_x,
+                    op_delegate: OpDelegate::Address(ops::sbc_address),
+                    mnemonic: "SBC",
+                    addressing: "ABS, X",
+                }
+            }
+            
+            Opcode::INC_abs_x => {
+                &Instruction{
+                    cycles: 7,
+                    bytes: 3,
+                    addr_delegate: addressing::abs_x,
+                    op_delegate: OpDelegate::Address(ops::inc_address),
+                    mnemonic: "INC",
+                    addressing: "ABS, X",
+                }
+            }
         }
     }
 }
