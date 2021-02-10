@@ -66,7 +66,10 @@ pub fn dec_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMe
 }
 
 pub fn ldx_immediate(regs: &mut CPURegisters, immediate: u8, _cycle: usize) -> BusMessage {
-    todo!("functionality for ldx_immediate()");
+    regs.x = immediate;
+    regs.set_flag(CPUFlags::Z, regs.x == 0);
+    regs.set_flag(CPUFlags::N, regs.x & 0x80 == 0x80);
+    Nop
 }
 
 pub fn tsx_implied(regs: &mut CPURegisters, cycle: usize) -> BusMessage {
@@ -106,7 +109,12 @@ pub fn bne_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMe
 }
 
 pub fn sty_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMessage {
-    todo!("functionality for sty_address()");
+    match cycle {
+        1 => {
+            Write{addr: address, data: regs.y}
+        },
+        _ => Nop,
+    }
 }
 
 pub fn ldy_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMessage {
@@ -154,7 +162,12 @@ pub fn cli_implied(regs: &mut CPURegisters, cycle: usize) -> BusMessage {
 }
 
 pub fn stx_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMessage {
-    todo!("functionality for stx_address()");
+    match cycle {
+        1 => {
+            Write{addr: address, data: regs.x}
+        },
+        _ => Nop,
+    }
 }
 
 pub fn bmi_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMessage {
@@ -162,7 +175,10 @@ pub fn bmi_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMe
 }
 
 pub fn ldy_immediate(regs: &mut CPURegisters, immediate: u8, _cycle: usize) -> BusMessage {
-    todo!("functionality for ldy_immediate()");
+    regs.y = immediate;
+    regs.set_flag(CPUFlags::Z, regs.y == 0);
+    regs.set_flag(CPUFlags::N, regs.y & 0x80 == 0x80);
+    Nop
 }
 
 pub fn tax_implied(regs: &mut CPURegisters, cycle: usize) -> BusMessage {
