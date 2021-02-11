@@ -1,6 +1,7 @@
-use crate::cpu::{AddrDelegateReturn, CPURegisters, Operand};
+use crate::{BusMessage, cpu::{AddrDelegateReturn, CPURegisters, Operand}};
+
 pub fn acc(regs: &mut CPURegisters, cycle: usize) -> AddrDelegateReturn {
-    todo!("functionality for acc() addressing");
+    AddrDelegateReturn::Return(Operand::Implied)
 }
 
 pub fn imm(regs: &mut CPURegisters, _cycle: usize) -> AddrDelegateReturn {
@@ -8,7 +9,9 @@ pub fn imm(regs: &mut CPURegisters, _cycle: usize) -> AddrDelegateReturn {
 }
 
 pub fn abs(regs: &mut CPURegisters, cycle: usize) -> AddrDelegateReturn {
-    todo!("functionality for abs() addressing");
+    let mut addr = regs.o1 as u16;
+    addr |= (regs.o2 as u16) << 8;
+    AddrDelegateReturn::Return(Operand::Address(addr))
 }
 
 pub fn zp(regs: &mut CPURegisters, _cycle: usize) -> AddrDelegateReturn {
@@ -48,5 +51,29 @@ pub fn ind_y(regs: &mut CPURegisters, cycle: usize) -> AddrDelegateReturn {
 }
 
 pub fn ind(regs: &mut CPURegisters, cycle: usize) -> AddrDelegateReturn {
-    todo!("functionality for ind() addressing");
+    match cycle {
+        1 => {
+            // fetch new PC LSB at operand
+            let mut jmpaddr = regs.o1 as u16;
+            jmpaddr |= (regs.o2 as u16) << 8;
+            AddrDelegateReturn::Yield(BusMessage::Read{addr: jmpaddr})
+        }
+        2 => {
+            // set new PC LSB
+            regs.addr = regs.data as u16;
+
+            // fetch new PC MSB at operand+1
+            let mut jmpaddr = regs.o1 as u16;
+            jmpaddr |= (regs.o2 as u16) << 8;
+            AddrDelegateReturn::Yield(BusMessage::Read{addr: jmpaddr+1})
+        }
+        3 => {
+            // set new PC MSB
+            regs.addr |= (regs.data as u16) << 8;
+
+            // done
+            AddrDelegateReturn::Return(Operand::Address(regs.addr))
+        }
+        _ => panic!("Addressing cannot continue after Return")
+    }
 }

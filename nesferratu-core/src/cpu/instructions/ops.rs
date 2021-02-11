@@ -218,7 +218,8 @@ pub fn and_immediate(regs: &mut CPURegisters, immediate: u8, _cycle: usize) -> B
 }
 
 pub fn jmp_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMessage {
-    todo!("functionality for jmp_address()");
+    regs.pc = address;
+    Nop
 }
 
 pub fn ror_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMessage {

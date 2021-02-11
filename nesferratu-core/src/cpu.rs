@@ -48,6 +48,7 @@ pub struct CPURegisters {
     op: u8,     // 1st byte of instruction
     o1: u8,     // 2nd byte of instruction
     o2: u8,     // 3rd byte of instruction
+    addr: u16,  // scratch pad for addressing modes
     data: u8,   // data from bus
 }
 

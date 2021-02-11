@@ -122,6 +122,9 @@ impl Memory {
             b'd',
             0x85, // STA zp
             0x0A,
+            0x6C, // JMP ind
+            0xFC, // reset vector addr
+            0xFF,
         ];
         
         // set reset vector
