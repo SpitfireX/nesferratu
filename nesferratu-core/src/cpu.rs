@@ -240,6 +240,8 @@ impl CPU for CPUInterpreter {
         self.addr_cycle = 0;
         self.exec_cycle = 0;
 
+        // bit 3 of status always high
+        self.registers.status = 0x20;
         // set IRQ disable flag
         self.registers.set_flag(CPUFlags::I, true);
 
