@@ -19,7 +19,31 @@ pub fn tay_implied(regs: &mut CPURegisters, cycle: usize) -> BusMessage {
 }
 
 pub fn sbc_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMessage {
-    todo!("functionality for sbc_address()");
+    match cycle {
+        1 => BusMessage::Read{addr: address}, // fetch value
+        2 => {
+            // invert operand
+            let immediate = regs.data ^ 0xFF;
+
+            let result: usize = regs.a as usize + immediate as usize + regs.get_flag(CPUFlags::C) as usize;
+
+            // carry flag
+            regs.set_flag(CPUFlags::C, result > 255);
+        
+            // zero flag
+            regs.set_flag(CPUFlags::Z, (result & 0xFF) == 0);
+        
+            // signed overflow flag, V = (A^result) & (M^result) & 0x80
+            // see http://www.righto.com/2012/12/the-6502-overflow-flag-explained.html
+            regs.set_flag(CPUFlags::V, (regs.a as usize ^ result) & (immediate as usize ^ result) & 0x80 > 1);
+        
+            // load result into accumultoar
+            regs.a = result as u8;
+        
+            Nop
+        }
+        _ => Nop
+    }
 }
 
 pub fn jsr_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMessage {
@@ -92,8 +116,26 @@ pub fn sed_implied(regs: &mut CPURegisters, cycle: usize) -> BusMessage {
     todo!("functionality for sed_implied()");
 }
 
-pub fn sbc_immediate(regs: &mut CPURegisters, immediate: u8, _cycle: usize) -> BusMessage {
-    todo!("functionality for sbc_immediate()");
+pub fn sbc_immediate(regs: &mut CPURegisters, mut immediate: u8, _cycle: usize) -> BusMessage {
+    // invert operand
+    immediate ^= 0xFF;
+    
+    let result: usize = regs.a as usize + immediate as usize + regs.get_flag(CPUFlags::C) as usize;
+
+    // carry flag
+    regs.set_flag(CPUFlags::C, result > 255);
+
+    // zero flag
+    regs.set_flag(CPUFlags::Z, (result & 0xFF) == 0);
+
+    // signed overflow flag, V = (A^result) & (M^result) & 0x80
+    // see http://www.righto.com/2012/12/the-6502-overflow-flag-explained.html
+    regs.set_flag(CPUFlags::V, (regs.a as usize ^ result) & (immediate as usize ^ result) & 0x80 > 1);
+
+    // load result into accumultoar
+    regs.a = result as u8;
+
+    Nop
 }
 
 pub fn ora_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMessage {
@@ -163,8 +205,9 @@ pub fn adc_immediate(regs: &mut CPURegisters, immediate: u8, _cycle: usize) -> B
     // zero flag
     regs.set_flag(CPUFlags::Z, (result & 0xFF) == 0);
 
-    // signed overflow flag
-    regs.set_flag(CPUFlags::V, result as u8 >= 127);
+    // signed overflow flag, V = (A^result) & (M^result) & 0x80
+    // see http://www.righto.com/2012/12/the-6502-overflow-flag-explained.html
+    regs.set_flag(CPUFlags::V, (regs.a as usize ^ result) & (immediate as usize ^ result) & 0x80 > 1);
 
     // load result into accumultoar
     regs.a = result as u8;
@@ -278,8 +321,9 @@ pub fn adc_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMe
             // zero flag
             regs.set_flag(CPUFlags::Z, (result & 0xFF) == 0);
         
-            // signed overflow flag
-            regs.set_flag(CPUFlags::V, result as u8 > 127);
+            // signed overflow flag, V = (A^result) & (M^result) & 0x80
+            // see http://www.righto.com/2012/12/the-6502-overflow-flag-explained.html
+            regs.set_flag(CPUFlags::V, (regs.a as usize ^ result) & (regs.data as usize ^ result) & 0x80 > 1);
         
             // load result into accumultoar
             regs.a = result as u8;
