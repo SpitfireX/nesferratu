@@ -104,6 +104,8 @@ impl CPUInterpreter {
             println!("op: {}, addr: {}, bytes: {}, cycles: {}", i.mnemonic, i.addressing, i.bytes, i.cycles);
         }
         println!("{:02X?}", self.registers);
+        println!("Flags: NV-BDIZC");
+        println!("       {:08b}", self.registers.status);
     }
 }
 

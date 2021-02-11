@@ -101,7 +101,8 @@ pub fn ora_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMe
 }
 
 pub fn sec_implied(regs: &mut CPURegisters, cycle: usize) -> BusMessage {
-    todo!("functionality for sec_implied()");
+    regs.set_flag(CPUFlags::C, true);
+    Nop
 }
 
 pub fn bne_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMessage {
@@ -154,7 +155,21 @@ pub fn nop_implied(regs: &mut CPURegisters, cycle: usize) -> BusMessage {
 }
 
 pub fn adc_immediate(regs: &mut CPURegisters, immediate: u8, _cycle: usize) -> BusMessage {
-    todo!("functionality for adc_immediate()");
+    let result: usize = regs.a as usize + immediate as usize + regs.get_flag(CPUFlags::C) as usize;
+
+    // carry flag
+    regs.set_flag(CPUFlags::C, result > 255);
+
+    // zero flag
+    regs.set_flag(CPUFlags::Z, (result & 0xFF) == 0);
+
+    // signed overflow flag
+    regs.set_flag(CPUFlags::V, result as u8 >= 127);
+
+    // load result into accumultoar
+    regs.a = result as u8;
+
+    Nop
 }
 
 pub fn cli_implied(regs: &mut CPURegisters, cycle: usize) -> BusMessage {
@@ -252,7 +267,27 @@ pub fn lsr_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMe
 }
 
 pub fn adc_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMessage {
-    todo!("functionality for adc_address()");
+    match cycle {
+        1 => BusMessage::Read{addr: address}, // fetch value
+        2 => {
+            let result: usize = regs.a as usize + regs.data as usize + regs.get_flag(CPUFlags::C) as usize;
+
+            // carry flag
+            regs.set_flag(CPUFlags::C, result > 255);
+        
+            // zero flag
+            regs.set_flag(CPUFlags::Z, (result & 0xFF) == 0);
+        
+            // signed overflow flag
+            regs.set_flag(CPUFlags::V, result as u8 > 127);
+        
+            // load result into accumultoar
+            regs.a = result as u8;
+        
+            Nop
+        }
+        _ => Nop
+    }
 }
 
 pub fn bcs_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMessage {
@@ -288,7 +323,8 @@ pub fn cmp_immediate(regs: &mut CPURegisters, immediate: u8, _cycle: usize) -> B
 }
 
 pub fn clc_implied(regs: &mut CPURegisters, cycle: usize) -> BusMessage {
-    todo!("functionality for clc_implied()");
+    regs.set_flag(CPUFlags::C, false);
+    Nop
 }
 
 pub fn bpl_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMessage {

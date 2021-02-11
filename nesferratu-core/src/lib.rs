@@ -77,55 +77,73 @@ impl Memory {
             ram: [0x00; 64*1024]
         };
         let entrypoint: u16 = 0x1337;
+        // let program = [
+        //     0xA9u8, // LDA imm
+        //     b'h',
+        //     0x85, // STA zp
+        //     0x00,
+        //     0xA9, // LDA imm
+        //     b'e',
+        //     0x85, // STA zp
+        //     0x01,
+        //     0xA9, // LDA imm
+        //     b'l',
+        //     0x85, // STA zp
+        //     0x02,
+        //     0xA9, // LDA imm
+        //     b'l',
+        //     0x85, // STA zp
+        //     0x03,
+        //     0xA9, // LDA imm
+        //     b'o',
+        //     0x85, // STA zp
+        //     0x04,
+        //     0xA9, // LDA imm
+        //     b' ',
+        //     0x85, // STA zp
+        //     0x05,
+        //     0xA9, // LDA imm
+        //     b'w',
+        //     0x85, // STA zp
+        //     0x06,
+        //     0xA9, // LDA imm
+        //     b'o',
+        //     0x85, // STA zp
+        //     0x07,
+        //     0xA9, // LDA imm
+        //     b'r',
+        //     0x85, // STA zp
+        //     0x08,
+        //     0xA9, // LDA imm
+        //     b'l',
+        //     0x85, // STA zp
+        //     0x09,
+        //     0xA9, // LDA imm
+        //     b'd',
+        //     0x85, // STA zp
+        //     0x0A,
+        //     0x6C, // JMP ind
+        //     0xFC, // reset vector addr
+        //     0xFF,
+        // ];
+
         let program = [
-            0xA9u8, // LDA imm
-            b'h',
-            0x85, // STA zp
-            0x00,
+            0x38u8, // SEC
             0xA9, // LDA imm
-            b'e',
-            0x85, // STA zp
-            0x01,
-            0xA9, // LDA imm
-            b'l',
-            0x85, // STA zp
-            0x02,
-            0xA9, // LDA imm
-            b'l',
-            0x85, // STA zp
-            0x03,
-            0xA9, // LDA imm
-            b'o',
-            0x85, // STA zp
-            0x04,
-            0xA9, // LDA imm
-            b' ',
-            0x85, // STA zp
-            0x05,
-            0xA9, // LDA imm
-            b'w',
-            0x85, // STA zp
-            0x06,
-            0xA9, // LDA imm
-            b'o',
-            0x85, // STA zp
-            0x07,
-            0xA9, // LDA imm
-            b'r',
-            0x85, // STA zp
-            0x08,
-            0xA9, // LDA imm
-            b'l',
-            0x85, // STA zp
-            0x09,
-            0xA9, // LDA imm
-            b'd',
-            0x85, // STA zp
-            0x0A,
-            0x6C, // JMP ind
-            0xFC, // reset vector addr
-            0xFF,
+            0x3f,
+            0x69,   // ADC imm
+            0x40,
         ];
+
+        // let program = [
+        //     0x38u8, // SEC
+        //     0x18,   // CLC
+        //     0x38,   // SEC
+        //     0x18,   // CLC
+        // ];
+
+        // cheeky debug value
+        new.write(0x1234, 0xFF);
         
         // set reset vector
         new.write(0xFFFC, entrypoint as u8);
