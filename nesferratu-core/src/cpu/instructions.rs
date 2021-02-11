@@ -70,7 +70,7 @@ pub static RESET_INSTRUCTION: Instruction = Instruction {
     addressing: "Reset Vector",
 };
 
-//⚠️ here be automatically generated dragons 🐉
+// ⚠️ here be automatically generated dragons 🐉
 
 #[derive(num_derive::FromPrimitive, Debug, Copy, Clone)]
 #[allow(non_camel_case_types)]
@@ -347,7 +347,7 @@ impl Opcode {
                 &Instruction{
                     cycles: 5,
                     bytes: 2,
-                    addr_delegate: addressing::ind_y,
+                    addr_delegate: addressing::ind_y_extra,
                     op_delegate: OpDelegate::Address(ops::ora_address),
                     mnemonic: "ORA",
                     addressing: "(IND), Y",
@@ -391,7 +391,7 @@ impl Opcode {
                 &Instruction{
                     cycles: 4,
                     bytes: 3,
-                    addr_delegate: addressing::abs_y,
+                    addr_delegate: addressing::abs_y_extra,
                     op_delegate: OpDelegate::Address(ops::ora_address),
                     mnemonic: "ORA",
                     addressing: "ABS, Y",
@@ -402,7 +402,7 @@ impl Opcode {
                 &Instruction{
                     cycles: 4,
                     bytes: 3,
-                    addr_delegate: addressing::abs_x,
+                    addr_delegate: addressing::abs_x_extra,
                     op_delegate: OpDelegate::Address(ops::ora_address),
                     mnemonic: "ORA",
                     addressing: "ABS, X",
@@ -556,7 +556,7 @@ impl Opcode {
                 &Instruction{
                     cycles: 5,
                     bytes: 2,
-                    addr_delegate: addressing::ind_y,
+                    addr_delegate: addressing::ind_y_extra,
                     op_delegate: OpDelegate::Address(ops::and_address),
                     mnemonic: "AND",
                     addressing: "(IND), Y",
@@ -600,7 +600,7 @@ impl Opcode {
                 &Instruction{
                     cycles: 4,
                     bytes: 3,
-                    addr_delegate: addressing::abs_y,
+                    addr_delegate: addressing::abs_y_extra,
                     op_delegate: OpDelegate::Address(ops::and_address),
                     mnemonic: "AND",
                     addressing: "ABS, Y",
@@ -611,7 +611,7 @@ impl Opcode {
                 &Instruction{
                     cycles: 4,
                     bytes: 3,
-                    addr_delegate: addressing::abs_x,
+                    addr_delegate: addressing::abs_x_extra,
                     op_delegate: OpDelegate::Address(ops::and_address),
                     mnemonic: "AND",
                     addressing: "ABS, X",
@@ -754,7 +754,7 @@ impl Opcode {
                 &Instruction{
                     cycles: 5,
                     bytes: 2,
-                    addr_delegate: addressing::ind_y,
+                    addr_delegate: addressing::ind_y_extra,
                     op_delegate: OpDelegate::Address(ops::eor_address),
                     mnemonic: "EOR",
                     addressing: "(IND), Y",
@@ -798,7 +798,7 @@ impl Opcode {
                 &Instruction{
                     cycles: 4,
                     bytes: 3,
-                    addr_delegate: addressing::abs_y,
+                    addr_delegate: addressing::abs_y_extra,
                     op_delegate: OpDelegate::Address(ops::eor_address),
                     mnemonic: "EOR",
                     addressing: "ABS, Y",
@@ -809,7 +809,7 @@ impl Opcode {
                 &Instruction{
                     cycles: 4,
                     bytes: 3,
-                    addr_delegate: addressing::abs_x,
+                    addr_delegate: addressing::abs_x_extra,
                     op_delegate: OpDelegate::Address(ops::eor_address),
                     mnemonic: "EOR",
                     addressing: "ABS, X",
@@ -952,7 +952,7 @@ impl Opcode {
                 &Instruction{
                     cycles: 5,
                     bytes: 2,
-                    addr_delegate: addressing::ind_y,
+                    addr_delegate: addressing::ind_y_extra,
                     op_delegate: OpDelegate::Address(ops::adc_address),
                     mnemonic: "ADC",
                     addressing: "(IND), Y",
@@ -996,7 +996,7 @@ impl Opcode {
                 &Instruction{
                     cycles: 4,
                     bytes: 3,
-                    addr_delegate: addressing::abs_y,
+                    addr_delegate: addressing::abs_y_extra,
                     op_delegate: OpDelegate::Address(ops::adc_address),
                     mnemonic: "ADC",
                     addressing: "ABS, Y",
@@ -1007,7 +1007,7 @@ impl Opcode {
                 &Instruction{
                     cycles: 4,
                     bytes: 3,
-                    addr_delegate: addressing::abs_x,
+                    addr_delegate: addressing::abs_x_extra,
                     op_delegate: OpDelegate::Address(ops::adc_address),
                     mnemonic: "ADC",
                     addressing: "ABS, X",
@@ -1370,7 +1370,7 @@ impl Opcode {
                 &Instruction{
                     cycles: 5,
                     bytes: 2,
-                    addr_delegate: addressing::ind_y,
+                    addr_delegate: addressing::ind_y_extra,
                     op_delegate: OpDelegate::Address(ops::lda_address),
                     mnemonic: "LDA",
                     addressing: "(IND), Y",
@@ -1425,7 +1425,7 @@ impl Opcode {
                 &Instruction{
                     cycles: 4,
                     bytes: 3,
-                    addr_delegate: addressing::abs_y,
+                    addr_delegate: addressing::abs_y_extra,
                     op_delegate: OpDelegate::Address(ops::lda_address),
                     mnemonic: "LDA",
                     addressing: "ABS, Y",
@@ -1447,7 +1447,7 @@ impl Opcode {
                 &Instruction{
                     cycles: 4,
                     bytes: 3,
-                    addr_delegate: addressing::abs_x,
+                    addr_delegate: addressing::abs_x_extra,
                     op_delegate: OpDelegate::Address(ops::ldy_address),
                     mnemonic: "LDY",
                     addressing: "ABS, X",
@@ -1458,7 +1458,7 @@ impl Opcode {
                 &Instruction{
                     cycles: 4,
                     bytes: 3,
-                    addr_delegate: addressing::abs_x,
+                    addr_delegate: addressing::abs_x_extra,
                     op_delegate: OpDelegate::Address(ops::lda_address),
                     mnemonic: "LDA",
                     addressing: "ABS, X",
@@ -1469,7 +1469,7 @@ impl Opcode {
                 &Instruction{
                     cycles: 4,
                     bytes: 3,
-                    addr_delegate: addressing::abs_y,
+                    addr_delegate: addressing::abs_y_extra,
                     op_delegate: OpDelegate::Address(ops::ldx_address),
                     mnemonic: "LDX",
                     addressing: "ABS, Y",
@@ -1612,7 +1612,7 @@ impl Opcode {
                 &Instruction{
                     cycles: 5,
                     bytes: 2,
-                    addr_delegate: addressing::ind_y,
+                    addr_delegate: addressing::ind_y_extra,
                     op_delegate: OpDelegate::Address(ops::cmp_address),
                     mnemonic: "CMP",
                     addressing: "(IND), Y",
@@ -1656,7 +1656,7 @@ impl Opcode {
                 &Instruction{
                     cycles: 4,
                     bytes: 3,
-                    addr_delegate: addressing::abs_y,
+                    addr_delegate: addressing::abs_y_extra,
                     op_delegate: OpDelegate::Address(ops::cmp_address),
                     mnemonic: "CMP",
                     addressing: "ABS, Y",
@@ -1667,7 +1667,7 @@ impl Opcode {
                 &Instruction{
                     cycles: 4,
                     bytes: 3,
-                    addr_delegate: addressing::abs_x,
+                    addr_delegate: addressing::abs_x_extra,
                     op_delegate: OpDelegate::Address(ops::cmp_address),
                     mnemonic: "CMP",
                     addressing: "ABS, X",
@@ -1821,7 +1821,7 @@ impl Opcode {
                 &Instruction{
                     cycles: 5,
                     bytes: 2,
-                    addr_delegate: addressing::ind_y,
+                    addr_delegate: addressing::ind_y_extra,
                     op_delegate: OpDelegate::Address(ops::sbc_address),
                     mnemonic: "SBC",
                     addressing: "(IND), Y",
@@ -1865,7 +1865,7 @@ impl Opcode {
                 &Instruction{
                     cycles: 4,
                     bytes: 3,
-                    addr_delegate: addressing::abs_y,
+                    addr_delegate: addressing::abs_y_extra,
                     op_delegate: OpDelegate::Address(ops::sbc_address),
                     mnemonic: "SBC",
                     addressing: "ABS, Y",
@@ -1876,7 +1876,7 @@ impl Opcode {
                 &Instruction{
                     cycles: 4,
                     bytes: 3,
-                    addr_delegate: addressing::abs_x,
+                    addr_delegate: addressing::abs_x_extra,
                     op_delegate: OpDelegate::Address(ops::sbc_address),
                     mnemonic: "SBC",
                     addressing: "ABS, X",

@@ -2,7 +2,7 @@
 pub mod instructions;
 
 use num_traits::FromPrimitive;
-use instructions::{Instruction, Operand, Opcode, AddrDelegateReturn};
+use instructions::{AddrDelegateReturn, Instruction, Opcode, Operand, RESET_INSTRUCTION};
 use crate::BusMessage;
 
 pub trait CPU {
@@ -45,11 +45,12 @@ pub struct CPURegisters {
     status: u8, // Status Register
     
     // emulation helpers
-    op: u8,     // 1st byte of instruction
-    o1: u8,     // 2nd byte of instruction
-    o2: u8,     // 3rd byte of instruction
-    addr: u16,  // scratch pad for addressing modes
-    data: u8,   // data from bus
+    op: u8,             // 1st byte of instruction
+    o1: u8,             // 2nd byte of instruction
+    o2: u8,             // 3rd byte of instruction
+    addr: u16,          // scratch pad for addressing modes
+    data: u8,           // data from bus
+    extra_cycle: bool   // flag to add one cycle to the instructions cycle length during the next cycle
 }
 
 impl CPURegisters {
@@ -78,6 +79,7 @@ pub struct CPUInterpreter {
     state: CPUState,
     instruction: Option<&'static Instruction>,
     operand: Option<Operand>,
+    instruction_cycles: usize,
 }
 
 impl CPUInterpreter {
@@ -92,6 +94,7 @@ impl CPUInterpreter {
             state: CPUState::Halt,
             instruction: None,
             operand: None,
+            instruction_cycles: 0,
         }
     }
 
@@ -120,6 +123,12 @@ impl CPU for CPUInterpreter {
             self.registers.data = data;
         }
 
+        // increase the cycle lenght of the current instruction if the current instruction requires it
+        if self.registers.extra_cycle {
+            self.instruction_cycles += 1;
+            self.registers.extra_cycle = false;
+        }
+
         // CPU state machine
 
         loop {
@@ -133,6 +142,7 @@ impl CPU for CPUInterpreter {
                                     .expect("Illegal Opcode")
                                     .to_instruction()
                             );
+                            self.instruction_cycles = self.instruction.unwrap().cycles;
                             self.registers.pc += 1;
                         },
                         2 => {
@@ -192,7 +202,7 @@ impl CPU for CPUInterpreter {
                         }
                     };
 
-                    if self.op_cycle < instruction.cycles {
+                    if self.op_cycle < self.instruction_cycles {
                         return msg;
                     } else {
                         // We're done with this instruction, prepare the next one!
@@ -201,6 +211,7 @@ impl CPU for CPUInterpreter {
                         self.exec_cycle = 0;
                         self.instruction = None;
                         self.operand = None;
+                        self.instruction_cycles = 0;
                         self.state = Fetch;
                         return Read{addr: self.registers.pc};
                     }
@@ -237,5 +248,6 @@ impl CPU for CPUInterpreter {
         self.state = CPUState::Execute;
         self.operand = Some(Operand::Address(0xFFFC));
         self.instruction = Some(&instructions::RESET_INSTRUCTION);
+        self.instruction_cycles = RESET_INSTRUCTION.cycles;
     }
 }

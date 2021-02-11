@@ -77,3 +77,15 @@ pub fn ind(regs: &mut CPURegisters, cycle: usize) -> AddrDelegateReturn {
         _ => panic!("Addressing cannot continue after Return")
     }
 }
+
+pub fn abs_x_extra(regs: &mut CPURegisters, cycle: usize) -> AddrDelegateReturn {
+    todo!("functionality for abs_x_extra() addressing");
+}
+
+pub fn abs_y_extra(regs: &mut CPURegisters, cycle: usize) -> AddrDelegateReturn {
+    todo!("functionality for abs_y_extra() addressing");
+}
+
+pub fn ind_y_extra(regs: &mut CPURegisters, cycle: usize) -> AddrDelegateReturn {
+    todo!("functionality for ind_y_extra() addressing");
+}

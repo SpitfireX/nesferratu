@@ -54,6 +54,9 @@ adrs = {
     '(ind, x)': 'ind_x',
     '(ind), y': 'ind_y',
     'indirect': 'ind',
+    'abs, x+': 'abs_x_extra',
+    'abs, y+': 'abs_y_extra',
+    '(ind), y+': 'ind_y_extra',
 }
 
 def addrname(addr):
@@ -110,12 +113,14 @@ def create_opmatch(table):
         for i in range(len(table[0])):
             op = table[i][j]
             if op and op['opcode']:
+                addr_postfix = '_extra' if op['cyclelen'].endswith('*') and op['addressing'] != 'relative' else ''
+
                 arm = (
                     f'    \n    Opcode::{opname(op)} => {{\n'
                     f'        &Instruction{{\n'
                     f'            cycles: {op["cyclelen"].strip("*")},\n'
                     f'            bytes: {op["bytelen"]},\n'
-                    f'            addr_delegate: addressing::{addrname(op["addressing"])},\n'
+                    f'            addr_delegate: addressing::{addrname(op["addressing"])+addr_postfix},\n'
                     f'            op_delegate: OpDelegate::{operand(addrname(op["addressing"]))}(ops::{funname(op).lower()}),\n'
                     f'            mnemonic: "{op["opcode"].upper()}",\n'
                     f'            addressing: "{fulladdrname(op["addressing"])}",\n'

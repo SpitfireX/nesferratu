@@ -1,0 +1,25 @@
+SBC - Subtract with Carry
+ADC - Add with Carry
+LDA - Load Accumulator
+ORA - Logical Inclusive OR
+AND - Logical AND
+CMP - Compare
+EOR - Exclusive OR
+    Absolute,X 	4 (+1 if page crossed)
+    Absolute,Y 	4 (+1 if page crossed)
+    (Indirect),Y 	5 (+1 if page crossed)
+
+LDX - Load X Register
+LDY - Load Y Register
+    Absolute,X 	4 (+1 if page crossed)
+
+
+BCC - Branch if Carry Clear
+BCS - Branch if Carry Set
+BEQ - Branch if Equal
+BMI - Branch if Minus
+BNE - Branch if Not Equal
+BPL - Branch if Positive
+BVC - Branch if Overflow Clear
+BVS - Branch if Overflow Set
+    Relative	2 (+1 if branch succeeds +2 if to a new page)
