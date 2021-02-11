@@ -183,7 +183,6 @@ impl CPU for CPUInterpreter {
                     self.exec_cycle += 1;
                     
                     let instruction = self.instruction
-                                        .as_ref()
                                         .expect("CPU::instruction is None, this should be impossible at this point");
 
                     let operand = self.operand
