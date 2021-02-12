@@ -7,7 +7,8 @@ pub fn txs_implied(regs: &mut CPURegisters, cycle: usize) -> BusMessage {
 }
 
 pub fn cld_implied(regs: &mut CPURegisters, cycle: usize) -> BusMessage {
-    todo!("functionality for cld_implied()");
+    regs.set_flag(CPUFlags::D, false);
+    Nop
 }
 
 pub fn asl_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMessage {
@@ -66,7 +67,8 @@ pub fn pha_implied(regs: &mut CPURegisters, cycle: usize) -> BusMessage {
 }
 
 pub fn sei_implied(regs: &mut CPURegisters, cycle: usize) -> BusMessage {
-    todo!("functionality for sei_implied()");
+    regs.set_flag(CPUFlags::I, true);
+    Nop
 }
 
 pub fn inc_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMessage {
@@ -113,7 +115,8 @@ pub fn iny_implied(regs: &mut CPURegisters, cycle: usize) -> BusMessage {
 }
 
 pub fn sed_implied(regs: &mut CPURegisters, cycle: usize) -> BusMessage {
-    todo!("functionality for sed_implied()");
+    regs.set_flag(CPUFlags::D, true);
+    Nop
 }
 
 pub fn sbc_immediate(regs: &mut CPURegisters, mut immediate: u8, _cycle: usize) -> BusMessage {
@@ -189,7 +192,8 @@ pub fn ldx_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMe
 }
 
 pub fn clv_implied(regs: &mut CPURegisters, cycle: usize) -> BusMessage {
-    todo!("functionality for clv_implied()");
+    regs.set_flag(CPUFlags::V, false);
+    Nop
 }
 
 pub fn nop_implied(regs: &mut CPURegisters, cycle: usize) -> BusMessage {
@@ -216,7 +220,8 @@ pub fn adc_immediate(regs: &mut CPURegisters, immediate: u8, _cycle: usize) -> B
 }
 
 pub fn cli_implied(regs: &mut CPURegisters, cycle: usize) -> BusMessage {
-    todo!("functionality for cli_implied()");
+    regs.set_flag(CPUFlags::I, false);
+    Nop
 }
 
 pub fn stx_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMessage {
