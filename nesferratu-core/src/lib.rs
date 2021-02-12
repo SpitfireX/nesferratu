@@ -128,11 +128,15 @@ impl Memory {
         // ];
 
         let program = [
-            0x38u8, // SEC
-            0xA9,   // LDA imm
-            0x80,
-            0xE9,   // SBC imm
-            0x01,
+            0xADu8, // LDA abs
+            0x37,
+            0x13,
+            0xAEu8, // LDX abs
+            0x37,
+            0x13,
+            0xACu8, // LDY abs
+            0x37,
+            0x13,
         ];
 
         // let program = [

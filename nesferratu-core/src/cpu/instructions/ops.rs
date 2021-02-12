@@ -167,7 +167,16 @@ pub fn sty_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMe
 }
 
 pub fn ldy_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMessage {
-    todo!("functionality for ldy_address()");
+    match cycle {
+        1 => Read{addr: address},
+        2 => {
+            regs.y = regs.data;
+            regs.set_flag(CPUFlags::Z, regs.y == 0);
+            regs.set_flag(CPUFlags::N, regs.y & 0x80 == 0x80);
+            Nop
+        }
+        _ => Nop
+    }
 }
 
 pub fn rol_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMessage {
@@ -191,7 +200,16 @@ pub fn asl_implied(regs: &mut CPURegisters, cycle: usize) -> BusMessage {
 }
 
 pub fn ldx_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMessage {
-    todo!("functionality for ldx_address()");
+    match cycle {
+        1 => Read{addr: address},
+        2 => {
+            regs.x = regs.data;
+            regs.set_flag(CPUFlags::Z, regs.x == 0);
+            regs.set_flag(CPUFlags::N, regs.x & 0x80 == 0x80);
+            Nop
+        }
+        _ => Nop
+    }
 }
 
 pub fn clv_implied(regs: &mut CPURegisters, cycle: usize) -> BusMessage {
@@ -312,7 +330,16 @@ pub fn beq_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMe
 }
 
 pub fn lda_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMessage {
-    todo!("functionality for lda_address()");
+    match cycle {
+        1 => Read{addr: address},
+        2 => {
+            regs.a = regs.data;
+            regs.set_flag(CPUFlags::Z, regs.a == 0);
+            regs.set_flag(CPUFlags::N, regs.a & 0x80 == 0x80);
+            Nop
+        }
+        _ => Nop
+    }
 }
 
 pub fn lsr_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMessage {
