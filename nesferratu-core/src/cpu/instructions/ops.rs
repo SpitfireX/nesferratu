@@ -90,7 +90,17 @@ pub fn rol_implied(regs: &mut CPURegisters, cycle: usize) -> BusMessage {
 }
 
 pub fn dec_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMessage {
-    todo!("functionality for dec_address()");
+    match cycle {
+        1 => Read{addr: address},
+        2 => {
+            regs.data -= 1;
+            regs.set_flag(CPUFlags::Z, regs.data == 0);
+            regs.set_flag(CPUFlags::N, regs.data & 0x80 == 0x80);
+            Nop
+        }
+        3 => Write{addr: address, data: regs.data},
+        _ => Nop,
+    }
 }
 
 pub fn ldx_immediate(regs: &mut CPURegisters, immediate: u8, _cycle: usize) -> BusMessage {
@@ -184,7 +194,10 @@ pub fn rol_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMe
 }
 
 pub fn dex_implied(regs: &mut CPURegisters, cycle: usize) -> BusMessage {
-    todo!("functionality for dex_implied()");
+    regs.x -= 1;
+    regs.set_flag(CPUFlags::Z, regs.x == 0);
+    regs.set_flag(CPUFlags::N, regs.x & 0x80 == 1);
+    Nop
 }
 
 pub fn php_implied(regs: &mut CPURegisters, cycle: usize) -> BusMessage {
@@ -271,7 +284,10 @@ pub fn tax_implied(regs: &mut CPURegisters, cycle: usize) -> BusMessage {
 }
 
 pub fn dey_implied(regs: &mut CPURegisters, cycle: usize) -> BusMessage {
-    todo!("functionality for dey_implied()");
+    regs.y -= 1;
+    regs.set_flag(CPUFlags::Z, regs.y == 0);
+    regs.set_flag(CPUFlags::N, regs.y & 0x80 == 1);
+    Nop
 }
 
 pub fn eor_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMessage {
