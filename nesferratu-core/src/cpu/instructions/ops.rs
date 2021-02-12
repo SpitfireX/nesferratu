@@ -200,7 +200,7 @@ pub fn clv_implied(regs: &mut CPURegisters, cycle: usize) -> BusMessage {
 }
 
 pub fn nop_implied(regs: &mut CPURegisters, cycle: usize) -> BusMessage {
-    todo!("functionality for nop_implied()");
+    Nop
 }
 
 pub fn adc_immediate(regs: &mut CPURegisters, immediate: u8, _cycle: usize) -> BusMessage {
