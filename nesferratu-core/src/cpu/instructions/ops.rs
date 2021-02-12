@@ -3,7 +3,8 @@ use crate::BusMessage;
 use crate::BusMessage::*;
 
 pub fn txs_implied(regs: &mut CPURegisters, cycle: usize) -> BusMessage {
-    todo!("functionality for txs_implied()");
+    regs.sp = regs.x;
+    Nop
 }
 
 pub fn cld_implied(regs: &mut CPURegisters, cycle: usize) -> BusMessage {
@@ -16,7 +17,8 @@ pub fn asl_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMe
 }
 
 pub fn tay_implied(regs: &mut CPURegisters, cycle: usize) -> BusMessage {
-    todo!("functionality for tay_implied()");
+    regs.y = regs.a;
+    Nop
 }
 
 pub fn sbc_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMessage {
@@ -99,7 +101,8 @@ pub fn ldx_immediate(regs: &mut CPURegisters, immediate: u8, _cycle: usize) -> B
 }
 
 pub fn tsx_implied(regs: &mut CPURegisters, cycle: usize) -> BusMessage {
-    todo!("functionality for tsx_implied()");
+    regs.x = regs.sp;
+    Nop
 }
 
 pub fn inx_implied(regs: &mut CPURegisters, cycle: usize) -> BusMessage {
@@ -245,7 +248,8 @@ pub fn ldy_immediate(regs: &mut CPURegisters, immediate: u8, _cycle: usize) -> B
 }
 
 pub fn tax_implied(regs: &mut CPURegisters, cycle: usize) -> BusMessage {
-    todo!("functionality for tax_implied()");
+    regs.x = regs.a;
+    Nop
 }
 
 pub fn dey_implied(regs: &mut CPURegisters, cycle: usize) -> BusMessage {
@@ -269,7 +273,8 @@ pub fn rts_implied(regs: &mut CPURegisters, cycle: usize) -> BusMessage {
 }
 
 pub fn tya_implied(regs: &mut CPURegisters, cycle: usize) -> BusMessage {
-    todo!("functionality for tya_implied()");
+    regs.a = regs.y;
+    Nop
 }
 
 pub fn plp_implied(regs: &mut CPURegisters, cycle: usize) -> BusMessage {
@@ -385,7 +390,8 @@ pub fn bit_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMe
 }
 
 pub fn txa_implied(regs: &mut CPURegisters, cycle: usize) -> BusMessage {
-    todo!("functionality for txa_implied()");
+    regs.a = regs.x;
+    Nop
 }
 
 pub fn bvc_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMessage {
