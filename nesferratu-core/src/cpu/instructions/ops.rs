@@ -309,7 +309,23 @@ pub fn eor_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMe
 }
 
 pub fn lsr_implied(regs: &mut CPURegisters, cycle: usize) -> BusMessage {
-    todo!("functionality for lsr_implied()");
+    match cycle {
+        1 => {
+            // carry flag contains old LSB
+            regs.set_flag(CPUFlags::C, regs.a & 1 == 1);
+
+            regs.a >>= 1;
+
+            // zero flag
+            regs.set_flag(CPUFlags::Z, regs.a == 0);
+
+            // negative falg
+            regs.set_flag(CPUFlags::Z, regs.a & 0x80 == 1);
+
+            Nop
+        }
+        _ => Nop
+    }
 }
 
 pub fn bvs_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMessage {
@@ -381,7 +397,24 @@ pub fn lda_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMe
 }
 
 pub fn lsr_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMessage {
-    todo!("functionality for lsr_address()");
+    match cycle {
+        1 => Read{addr: address}, // fetch value
+        2 => {
+            // carry flag contains old LSB
+            regs.set_flag(CPUFlags::C, regs.data & 1 == 1); // work with fetched value
+
+            regs.data >>= 1;
+        
+            // zero flag
+            regs.set_flag(CPUFlags::Z, regs.data == 0);
+        
+            // negative falg
+            regs.set_flag(CPUFlags::Z, regs.data & 0x80 == 1);
+        
+            Write{addr: address, data: regs.data} // write back changed value
+        }
+        _ => Nop
+    }
 }
 
 pub fn adc_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMessage {
