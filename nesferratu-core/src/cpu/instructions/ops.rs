@@ -155,7 +155,21 @@ pub fn sbc_immediate(regs: &mut CPURegisters, mut immediate: u8, _cycle: usize) 
 }
 
 pub fn ora_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMessage {
-    todo!("functionality for ora_address()");
+    match cycle {
+        1 => Read{addr: address}, // fetch value from address
+        2 => {
+            regs.a |= regs.data; // fetched value
+
+            // zero flag
+            regs.set_flag(CPUFlags::Z, regs.a == 0);
+        
+            // negative falg
+            regs.set_flag(CPUFlags::Z, regs.a & 0x80 == 1);
+        
+            Nop
+        }
+        _ => Nop
+    }
 }
 
 pub fn sec_implied(regs: &mut CPURegisters, cycle: usize) -> BusMessage {
@@ -434,7 +448,15 @@ pub fn pla_implied(regs: &mut CPURegisters, cycle: usize) -> BusMessage {
 }
 
 pub fn ora_immediate(regs: &mut CPURegisters, immediate: u8, _cycle: usize) -> BusMessage {
-    todo!("functionality for ora_immediate()");
+    regs.a |= immediate;
+
+    // zero flag
+    regs.set_flag(CPUFlags::Z, regs.a == 0);
+
+    // negative falg
+    regs.set_flag(CPUFlags::Z, regs.a & 0x80 == 1);
+
+    Nop
 }
 
 pub fn cmp_immediate(regs: &mut CPURegisters, immediate: u8, _cycle: usize) -> BusMessage {
