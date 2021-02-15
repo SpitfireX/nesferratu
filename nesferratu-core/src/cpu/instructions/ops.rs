@@ -91,7 +91,17 @@ pub fn sei_implied(regs: &mut CPURegisters, cycle: usize) -> BusMessage {
 }
 
 pub fn inc_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMessage {
-    todo!("functionality for inc_address()");
+    match cycle {
+        1 => Read{addr: address},
+        2 => {
+            regs.data += 1;
+            regs.set_flag(CPUFlags::Z, regs.data == 0);
+            regs.set_flag(CPUFlags::N, regs.data & 0x80 == 0x80);
+            Nop
+        }
+        3 => Write{addr: address, data: regs.data},
+        _ => Nop,
+    }
 }
 
 pub fn cpx_immediate(regs: &mut CPURegisters, immediate: u8, _cycle: usize) -> BusMessage {
@@ -155,7 +165,10 @@ pub fn tsx_implied(regs: &mut CPURegisters, cycle: usize) -> BusMessage {
 }
 
 pub fn inx_implied(regs: &mut CPURegisters, cycle: usize) -> BusMessage {
-    todo!("functionality for inx_implied()");
+    regs.x += 1;
+    regs.set_flag(CPUFlags::Z, regs.x == 0);
+    regs.set_flag(CPUFlags::N, regs.x & 0x80 == 0x80);
+    Nop
 }
 
 pub fn brk_implied(regs: &mut CPURegisters, cycle: usize) -> BusMessage {
@@ -163,7 +176,10 @@ pub fn brk_implied(regs: &mut CPURegisters, cycle: usize) -> BusMessage {
 }
 
 pub fn iny_implied(regs: &mut CPURegisters, cycle: usize) -> BusMessage {
-    todo!("functionality for iny_implied()");
+    regs.y += 1;
+    regs.set_flag(CPUFlags::Z, regs.y == 0);
+    regs.set_flag(CPUFlags::N, regs.y & 0x80 == 0x80);
+    Nop
 }
 
 pub fn sed_implied(regs: &mut CPURegisters, cycle: usize) -> BusMessage {
