@@ -127,15 +127,26 @@ impl Memory {
         //     0xFF,
         // ];
 
+        // let program = [
+        //     0xA9u8, // LDA imm
+        //     0x69,
+        //     0x85,   // STA zp
+        //     0x69,
+        //     0xC6,   // DEC zp
+        //     0x69,
+        //     0xC6,   // DEC zp
+        //     0x69,
+        // ];
+
         let program = [
             0xA9u8, // LDA imm
             0x69,
-            0x85,   // STA zp
-            0x69,
-            0xC6,   // DEC zp
-            0x69,
-            0xC6,   // DEC zp
-            0x69,
+            0x6E,   // ROR abs
+            0x77,
+            0x13,
+            0x6E,   // ROR abs
+            0x77,
+            0x13,
         ];
 
         // let program = [
@@ -146,7 +157,7 @@ impl Memory {
         // ];
 
         // cheeky debug value
-        new.write(0x1234, 0xFF);
+        new.write(0x1377, 0x01);
         
         // set reset vector
         new.write(0xFFFC, entrypoint as u8);

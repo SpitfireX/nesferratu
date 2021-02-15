@@ -441,7 +441,30 @@ pub fn jmp_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMe
 }
 
 pub fn ror_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMessage {
-    todo!("functionality for ror_address()");
+    match cycle {
+        1 => Read{addr: address}, // fetch value
+        2 => {
+            // save status register
+            let temp = regs.status;
+            
+            // carry flag contains old LSB
+            regs.set_flag(CPUFlags::C, regs.data & 1 == 1); // work with fetched value
+
+            regs.data >>= 1;
+
+            // new MSB is the old carry flag
+            regs.data |= (temp & 1) << 7;
+        
+            // zero flag
+            regs.set_flag(CPUFlags::Z, regs.data == 0);
+        
+            // negative flag
+            regs.set_flag(CPUFlags::Z, regs.data & 0x80 == 0x80);
+        
+            Write{addr: address, data: regs.data} // write back changed value
+        }
+        _ => Nop
+    }
 }
 
 pub fn sta_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMessage {
@@ -525,7 +548,29 @@ pub fn bcs_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMe
 }
 
 pub fn ror_implied(regs: &mut CPURegisters, cycle: usize) -> BusMessage {
-    todo!("functionality for ror_implied()");
+    match cycle {
+        1 => {
+            // save status register
+            let temp = regs.status;
+
+            // carry flag contains old LSB
+            regs.set_flag(CPUFlags::C, regs.a & 1 == 1);
+
+            regs.a >>= 1;
+
+            // new MSB is the old carry flag
+            regs.a |= (temp & 1) << 7;
+
+            // zero flag
+            regs.set_flag(CPUFlags::Z, regs.a == 0);
+
+            // negative flag
+            regs.set_flag(CPUFlags::Z, regs.a & 0x80 == 0x80);
+
+            Nop
+        }
+        _ => Nop
+    }
 }
 
 pub fn cpx_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMessage {
