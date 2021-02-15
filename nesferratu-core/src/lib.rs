@@ -138,16 +138,16 @@ impl Memory {
         //     0x69,
         // ];
 
-        let program = [
-            0xA9u8, // LDA imm
-            0x69,
-            0x6E,   // ROR abs
-            0x77,
-            0x13,
-            0x6E,   // ROR abs
-            0x77,
-            0x13,
-        ];
+        // let program = [
+        //     0xA9u8, // LDA imm
+        //     0x69,
+        //     0x6E,   // ROR abs
+        //     0x77,
+        //     0x13,
+        //     0x6E,   // ROR abs
+        //     0x77,
+        //     0x13,
+        // ];
 
         // let program = [
         //     0x38u8, // SEC
@@ -155,6 +155,14 @@ impl Memory {
         //     0x38,   // SEC
         //     0x18,   // CLC
         // ];
+
+        let program = [
+            0xA9u8, // LDA imm
+            0x69,
+            0xCD,   // CMP abs
+            0x77,
+            0x17,
+        ];
 
         // cheeky debug value
         new.write(0x1377, 0x01);

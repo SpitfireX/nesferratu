@@ -77,8 +77,24 @@ pub fn lda_immediate(regs: &mut CPURegisters, immediate: u8, _cycle: usize) -> B
     Nop
 }
 
-pub fn cpy_immediate(regs: &mut CPURegisters, immediate: u8, _cycle: usize) -> BusMessage {
-    todo!("functionality for cpy_immediate()");
+pub fn cpy_immediate(regs: &mut CPURegisters, immediate: u8, cycle: usize) -> BusMessage {
+    match cycle {
+        1 => {
+            let result = regs.y.wrapping_sub(regs.data); // CPY performs Y - M and sets flags
+
+            // zero flag <- A == M
+            regs.set_flag(CPUFlags::Z, result == 0);
+
+            // carry flag <- A >= M
+            regs.set_flag(CPUFlags::C, regs.y >= regs.data);
+
+            // negative flag
+            regs.set_flag(CPUFlags::N, result & 0x80 == 0x80);
+
+            Nop
+        }
+        _ => Nop
+    }
 }
 
 pub fn pha_implied(regs: &mut CPURegisters, cycle: usize) -> BusMessage {
@@ -104,12 +120,45 @@ pub fn inc_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMe
     }
 }
 
-pub fn cpx_immediate(regs: &mut CPURegisters, immediate: u8, _cycle: usize) -> BusMessage {
-    todo!("functionality for cpx_immediate()");
+pub fn cpx_immediate(regs: &mut CPURegisters, immediate: u8, cycle: usize) -> BusMessage {
+    match cycle {
+        1 => {
+            let result = regs.x.wrapping_sub(immediate); // CPX performs X - M and sets flags
+
+            // zero flag <- A == M
+            regs.set_flag(CPUFlags::Z, result == 0);
+
+            // carry flag <- A >= M
+            regs.set_flag(CPUFlags::C, regs.x >= immediate);
+
+            // negative flag
+            regs.set_flag(CPUFlags::N, result & 0x80 == 0x80);
+
+            Nop
+        }
+        _ => Nop
+    }
 }
 
 pub fn cpy_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMessage {
-    todo!("functionality for cpy_address()");
+    match cycle {
+        1 => Read{addr: address}, // fetch value M from memory
+        2 => {
+            let result = regs.y.wrapping_sub(regs.data); // CPY performs Y - M and sets flags
+
+            // zero flag <- A == M
+            regs.set_flag(CPUFlags::Z, result == 0);
+
+            // carry flag <- A >= M
+            regs.set_flag(CPUFlags::C, regs.y >= regs.data);
+
+            // negative flag
+            regs.set_flag(CPUFlags::N, result & 0x80 == 0x80);
+
+            Nop
+        }
+        _ => Nop
+    }
 }
 
 pub fn rol_implied(regs: &mut CPURegisters, cycle: usize) -> BusMessage {
@@ -493,7 +542,24 @@ pub fn sta_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMe
 }
 
 pub fn cmp_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMessage {
-    todo!("functionality for cmp_address()");
+    match cycle {
+        1 => Read{addr: address}, // fetch value M from memory
+        2 => {
+            let result = regs.a.wrapping_sub(regs.data); // CMP performs A - M and sets flags
+
+            // zero flag <- A == M
+            regs.set_flag(CPUFlags::Z, result == 0);
+
+            // carry flag <- A >= M
+            regs.set_flag(CPUFlags::C, regs.a >= regs.data);
+
+            // negative flag
+            regs.set_flag(CPUFlags::N, result & 0x80 == 0x80);
+
+            Nop
+        }
+        _ => Nop
+    }
 }
 
 pub fn beq_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMessage {
@@ -590,7 +656,24 @@ pub fn ror_implied(regs: &mut CPURegisters, cycle: usize) -> BusMessage {
 }
 
 pub fn cpx_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMessage {
-    todo!("functionality for cpx_address()");
+    match cycle {
+        1 => Read{addr: address}, // fetch value M from memory
+        2 => {
+            let result = regs.x.wrapping_sub(regs.data); // CPX performs A - M and sets flags
+
+            // zero flag <- A == M
+            regs.set_flag(CPUFlags::Z, result == 0);
+
+            // carry flag <- A >= M
+            regs.set_flag(CPUFlags::C, regs.x >= regs.data);
+
+            // negative flag
+            regs.set_flag(CPUFlags::N, result & 0x80 == 0x80);
+
+            Nop
+        }
+        _ => Nop
+    }
 }
 
 pub fn and_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMessage {
@@ -631,8 +714,24 @@ pub fn ora_immediate(regs: &mut CPURegisters, immediate: u8, _cycle: usize) -> B
     Nop
 }
 
-pub fn cmp_immediate(regs: &mut CPURegisters, immediate: u8, _cycle: usize) -> BusMessage {
-    todo!("functionality for cmp_immediate()");
+pub fn cmp_immediate(regs: &mut CPURegisters, immediate: u8, cycle: usize) -> BusMessage {
+    match cycle {
+        1 => {
+            let result = regs.a.wrapping_sub(immediate); // CMP performs A - M and sets flags
+
+            // zero flag <- A == M
+            regs.set_flag(CPUFlags::Z, result == 0);
+
+            // carry flag <- A >= M
+            regs.set_flag(CPUFlags::C, regs.a >= immediate);
+
+            // negative flag
+            regs.set_flag(CPUFlags::N, result & 0x80 == 0x80);
+
+            Nop
+        }
+        _ => Nop
+    }
 }
 
 pub fn clc_implied(regs: &mut CPURegisters, cycle: usize) -> BusMessage {
