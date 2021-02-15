@@ -13,7 +13,24 @@ pub fn cld_implied(regs: &mut CPURegisters, cycle: usize) -> BusMessage {
 }
 
 pub fn asl_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMessage {
-    todo!("functionality for asl_address()");
+    match cycle {
+        1 => Read{addr: address}, // fetch value
+        2 => {
+            // carry flag contains old LSB
+            regs.set_flag(CPUFlags::C, regs.data & 0x80 == 1); // work with fetched value
+
+            regs.data <<= 1;
+        
+            // zero flag
+            regs.set_flag(CPUFlags::Z, regs.data == 0);
+        
+            // negative flag
+            regs.set_flag(CPUFlags::Z, regs.data & 0x80 == 1);
+        
+            Write{addr: address, data: regs.data} // write back changed value
+        }
+        _ => Nop
+    }
 }
 
 pub fn tay_implied(regs: &mut CPURegisters, cycle: usize) -> BusMessage {
@@ -163,7 +180,7 @@ pub fn ora_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMe
             // zero flag
             regs.set_flag(CPUFlags::Z, regs.a == 0);
         
-            // negative falg
+            // negative flag
             regs.set_flag(CPUFlags::Z, regs.a & 0x80 == 1);
         
             Nop
@@ -223,7 +240,23 @@ pub fn rti_implied(regs: &mut CPURegisters, cycle: usize) -> BusMessage {
 }
 
 pub fn asl_implied(regs: &mut CPURegisters, cycle: usize) -> BusMessage {
-    todo!("functionality for asl_implied()");
+    match cycle {
+        1 => {
+            // carry flag contains old MSB
+            regs.set_flag(CPUFlags::C, regs.a & 0x80 == 1);
+
+            regs.a <<= 1;
+
+            // zero flag
+            regs.set_flag(CPUFlags::Z, regs.a == 0);
+
+            // negative flag
+            regs.set_flag(CPUFlags::Z, regs.a & 0x80 == 1);
+
+            Nop
+        }
+        _ => Nop
+    }
 }
 
 pub fn ldx_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMessage {
@@ -319,7 +352,7 @@ pub fn lsr_implied(regs: &mut CPURegisters, cycle: usize) -> BusMessage {
             // zero flag
             regs.set_flag(CPUFlags::Z, regs.a == 0);
 
-            // negative falg
+            // negative flag
             regs.set_flag(CPUFlags::Z, regs.a & 0x80 == 1);
 
             Nop
@@ -351,7 +384,7 @@ pub fn and_immediate(regs: &mut CPURegisters, immediate: u8, _cycle: usize) -> B
     // zero flag
     regs.set_flag(CPUFlags::Z, regs.a == 0);
 
-    // negative falg
+    // negative flag
     regs.set_flag(CPUFlags::Z, regs.a & 0x80 == 1);
 
     Nop
@@ -408,7 +441,7 @@ pub fn lsr_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMe
             // zero flag
             regs.set_flag(CPUFlags::Z, regs.data == 0);
         
-            // negative falg
+            // negative flag
             regs.set_flag(CPUFlags::Z, regs.data & 0x80 == 1);
         
             Write{addr: address, data: regs.data} // write back changed value
@@ -463,7 +496,7 @@ pub fn and_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMe
             // zero flag
             regs.set_flag(CPUFlags::Z, regs.a == 0);
         
-            // negative falg
+            // negative flag
             regs.set_flag(CPUFlags::Z, regs.a & 0x80 == 1);
         
             Nop
@@ -486,7 +519,7 @@ pub fn ora_immediate(regs: &mut CPURegisters, immediate: u8, _cycle: usize) -> B
     // zero flag
     regs.set_flag(CPUFlags::Z, regs.a == 0);
 
-    // negative falg
+    // negative flag
     regs.set_flag(CPUFlags::Z, regs.a & 0x80 == 1);
 
     Nop
