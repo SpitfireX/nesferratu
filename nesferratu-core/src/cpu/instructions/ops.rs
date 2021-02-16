@@ -744,7 +744,24 @@ pub fn bpl_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMe
 }
 
 pub fn bit_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMessage {
-    todo!("functionality for bit_address()");
+    match cycle {
+        1 => Read{addr: address}, // fetch operand M
+        2 => {
+            let result = regs.a & regs.data; // BIT performs A & M but doesn't store the result
+
+            // zero flag
+            regs.set_flag(CPUFlags::Z, result == 0);
+
+            // overflow flag <- M6
+            regs.set_flag(CPUFlags::V, regs.data & 0x70 == 0x70);
+
+            // negative flag <- M7
+            regs.set_flag(CPUFlags::N, regs.data & 0x80 == 0x80);
+
+            Nop
+        }
+        _ => Nop
+    }
 }
 
 pub fn txa_implied(regs: &mut CPURegisters, cycle: usize) -> BusMessage {
