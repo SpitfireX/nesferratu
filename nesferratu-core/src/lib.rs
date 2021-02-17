@@ -156,12 +156,25 @@ impl Memory {
         //     0x18,   // CLC
         // ];
 
+        // let program = [
+        //     0xA9u8, // LDA imm
+        //     0x69,
+        //     0xCD,   // CMP abs
+        //     0x77,
+        //     0x17,
+        // ];
+
         let program = [
             0xA9u8, // LDA imm
             0x69,
-            0xCD,   // CMP abs
-            0x77,
-            0x17,
+            0x48,   // PHA
+            0xA9,   // LDA imm
+            0x96,
+            0x48,
+            0xA9,   // LDA imm
+            0x00,
+            0x68,   // PLA
+            0x68,   // PLA
         ];
 
         // cheeky debug value

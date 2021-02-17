@@ -98,7 +98,14 @@ pub fn cpy_immediate(regs: &mut CPURegisters, immediate: u8, cycle: usize) -> Bu
 }
 
 pub fn pha_implied(regs: &mut CPURegisters, cycle: usize) -> BusMessage {
-    todo!("functionality for pha_implied()");
+    match cycle {
+        1 => Write{addr: 0x100 | regs.sp as u16, data: regs.a},
+        2 => {
+            regs.sp = regs.sp.wrapping_sub(1); // decrement stack pointer
+            Nop
+        }
+        _ => Nop
+    }
 }
 
 pub fn sei_implied(regs: &mut CPURegisters, cycle: usize) -> BusMessage {
@@ -342,7 +349,14 @@ pub fn dex_implied(regs: &mut CPURegisters, cycle: usize) -> BusMessage {
 }
 
 pub fn php_implied(regs: &mut CPURegisters, cycle: usize) -> BusMessage {
-    todo!("functionality for php_implied()");
+    match cycle {
+        1 => Write{addr: 0x100 | regs.sp as u16, data: regs.status},
+        2 => {
+            regs.sp = regs.sp.wrapping_sub(1); // decrement stack pointer
+            Nop
+        }
+        _ => Nop
+    }
 }
 
 pub fn rti_implied(regs: &mut CPURegisters, cycle: usize) -> BusMessage {
@@ -485,7 +499,17 @@ pub fn tya_implied(regs: &mut CPURegisters, cycle: usize) -> BusMessage {
 }
 
 pub fn plp_implied(regs: &mut CPURegisters, cycle: usize) -> BusMessage {
-    todo!("functionality for plp_implied()");
+    match cycle {
+        1 => {
+            regs.sp = regs.sp.wrapping_add(1); // increment stack pointer
+            Read{addr: 0x100 | regs.sp as u16}
+        }
+        2 => {
+            regs.status = regs.data;
+            Nop
+        }
+        _ => Nop
+    }
 }
 
 pub fn and_immediate(regs: &mut CPURegisters, immediate: u8, _cycle: usize) -> BusMessage {
@@ -699,7 +723,17 @@ pub fn eor_immediate(regs: &mut CPURegisters, immediate: u8, _cycle: usize) -> B
 }
 
 pub fn pla_implied(regs: &mut CPURegisters, cycle: usize) -> BusMessage {
-    todo!("functionality for pla_implied()");
+    match cycle {
+        1 => {
+            regs.sp = regs.sp.wrapping_add(1); // increment stack pointer
+            Read{addr: 0x100 | regs.sp as u16}
+        }
+        2 => {
+            regs.a = regs.data;
+            Nop
+        }
+        _ => Nop
+    }
 }
 
 pub fn ora_immediate(regs: &mut CPURegisters, immediate: u8, _cycle: usize) -> BusMessage {
