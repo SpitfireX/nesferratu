@@ -67,7 +67,19 @@ pub fn sbc_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMe
 }
 
 pub fn jsr_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMessage {
-    todo!("functionality for jsr_address()");
+    match cycle {
+        1 => Write{addr: 0x100 | regs.sp as u16, data: ((regs.pc-1) >> 8) as u8}, // push PC high byte to stack
+        2 => {
+            regs.sp = regs.sp.wrapping_sub(1);
+            Write{addr: 0x100 | regs.sp as u16, data: (regs.pc-1) as u8} // push PC low byte to stack
+        }
+        3 => {
+            regs.sp = regs.sp.wrapping_sub(1);
+            regs.pc = address; // jump to new PC
+            Nop
+        }
+        _ => Nop,
+    }
 }
 
 pub fn lda_immediate(regs: &mut CPURegisters, immediate: u8, _cycle: usize) -> BusMessage {
@@ -490,7 +502,26 @@ pub fn bvs_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMe
 }
 
 pub fn rts_implied(regs: &mut CPURegisters, cycle: usize) -> BusMessage {
-    todo!("functionality for rts_implied()");
+    match cycle {
+        1 => {
+            regs.sp = regs.sp.wrapping_add(1); // increment stack pointer
+            Read{addr: 0x100 | regs.sp as u16} // load new PC low
+        }
+        2 => {
+            regs.pc = regs.data as u16;
+            regs.sp = regs.sp.wrapping_add(1); // increment stack pointer
+            Read{addr: 0x100 | regs.sp as u16} // load new PC high
+        }
+        3 => {
+            regs.pc |= (regs.data as u16) << 8;
+            Nop
+        }
+        4 => {
+            regs.pc += 1; // increment PC by one to point to next opcode
+            Nop
+        }
+        _ => Nop,
+    }
 }
 
 pub fn tya_implied(regs: &mut CPURegisters, cycle: usize) -> BusMessage {

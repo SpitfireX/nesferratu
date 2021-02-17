@@ -50,6 +50,9 @@ impl Bus {
 
         println!("Zero Page:");
         self.memory.prettyprint(0x0000, 0x100);
+
+        println!("Stack:");
+        self.memory.prettyprint(0x01E0, 0x20);
     }
 
     fn read(&self, addr: u16) -> Option<u8> {
@@ -164,17 +167,37 @@ impl Memory {
         //     0x17,
         // ];
 
+        // let program = [
+        //     0xA9u8, // LDA imm
+        //     0x69,
+        //     0x48,   // PHA
+        //     0xA9,   // LDA imm
+        //     0x96,
+        //     0x48,
+        //     0xA9,   // LDA imm
+        //     0x00,
+        //     0x68,   // PLA
+        //     0x68,   // PLA
+        // ];
+
         let program = [
-            0xA9u8, // LDA imm
+            0x20u8, // JSR
+            0x47,
+            0x13,
+            0xA9,   // LDA imm
             0x69,
-            0x48,   // PHA
-            0xA9,   // LDA imm
-            0x96,
-            0x48,
-            0xA9,   // LDA imm
             0x00,
-            0x68,   // PLA
-            0x68,   // PLA
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x60
         ];
 
         // cheeky debug value
