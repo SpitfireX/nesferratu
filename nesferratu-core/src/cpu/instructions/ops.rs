@@ -240,7 +240,30 @@ pub fn inx_implied(regs: &mut CPURegisters, cycle: usize) -> BusMessage {
 }
 
 pub fn brk_implied(regs: &mut CPURegisters, cycle: usize) -> BusMessage {
-    todo!("functionality for brk_implied()");
+    match cycle {
+        1 => Write{addr: 0x100 | regs.sp as u16, data: ((regs.pc+1) >> 8) as u8}, // push BRK PC+2 high byte to stack
+        2 => {
+            regs.sp = regs.sp.wrapping_sub(1);
+            Write{addr: 0x100 | regs.sp as u16, data: (regs.pc+1) as u8} // push BRK PC+2 low byte to stack
+        }
+        3 => {
+            regs.sp = regs.sp.wrapping_sub(1);
+            Write{addr: 0x100 | regs.sp as u16, data: regs.status | 0x10} // push status register with B set to stack
+        }
+        4 => {
+            regs.sp = regs.sp.wrapping_sub(1);
+            Read{addr: 0xFFFE} // fetch PC low byte from vector
+        }
+        5 => {
+            regs.pc = regs.data as u16; // set PC low byte from stack
+            Read{addr: 0xFFFF} // fetch PC high byte from vector
+        }
+        6 => {
+            regs.pc |= (regs.data as u16) << 8; // set PC high byte from stack
+            Nop
+        }
+        _ => Nop,
+    }
 }
 
 pub fn iny_implied(regs: &mut CPURegisters, cycle: usize) -> BusMessage {
@@ -372,7 +395,29 @@ pub fn php_implied(regs: &mut CPURegisters, cycle: usize) -> BusMessage {
 }
 
 pub fn rti_implied(regs: &mut CPURegisters, cycle: usize) -> BusMessage {
-    todo!("functionality for rti_implied()");
+    match cycle {
+        1 => {
+            regs.sp = regs.sp.wrapping_add(1); // increment stack pointer
+            Read{addr: 0x100 | regs.sp as u16} // pull status register from stack
+        }
+        2 => {
+            regs.status = regs.data; // set status register from stack
+
+            regs.sp = regs.sp.wrapping_add(1); // increment stack pointer
+            Read{addr: 0x100 | regs.sp as u16} // pull PC low byte from stack
+        }
+        3 => {
+            regs.pc = regs.data as u16; // set PC low byte from stack
+
+            regs.sp = regs.sp.wrapping_add(1); // increment stack pointer
+            Read{addr: 0x100 | regs.sp as u16} // pull PC high byte from stack
+        }
+        4 => {
+            regs.pc |= (regs.data as u16) << 8; // set PC high byte from stack
+            Nop
+        }
+        _ => Nop,
+    }
 }
 
 pub fn asl_implied(regs: &mut CPURegisters, cycle: usize) -> BusMessage {

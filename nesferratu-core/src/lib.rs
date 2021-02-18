@@ -180,12 +180,28 @@ impl Memory {
         //     0x68,   // PLA
         // ];
 
+        // let program = [
+        //     0x20u8, // JSR
+        //     0x47,
+        //     0x13,
+        //     0xA9,   // LDA imm
+        //     0x69,
+        //     0x00,
+        //     0x00,
+        //     0x00,
+        //     0x00,
+        //     0x00,
+        //     0x00,
+        //     0x00,
+        //     0x00,
+        //     0x00,
+        //     0x00,
+        //     0x00,
+        //     0x60
+        // ];
+
         let program = [
-            0x20u8, // JSR
-            0x47,
-            0x13,
-            0xA9,   // LDA imm
-            0x69,
+            0x00u8, // BRK
             0x00,
             0x00,
             0x00,
@@ -197,7 +213,11 @@ impl Memory {
             0x00,
             0x00,
             0x00,
-            0x60
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x40    // RTI
         ];
 
         // cheeky debug value
@@ -206,6 +226,10 @@ impl Memory {
         // set reset vector
         new.write(0xFFFC, entrypoint as u8);
         new.write(0xFFFD, (entrypoint >> 8) as u8);
+
+        //set IRQ/BRK vector
+        new.write(0xFFFE, 0x47);
+        new.write(0xFFFF, 0x13);
 
         // tranfer program to the entry point
         let i = entrypoint as usize;
