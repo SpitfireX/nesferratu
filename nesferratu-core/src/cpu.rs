@@ -86,7 +86,7 @@ pub struct CPUInterpreter {
     state: CPUState,
     instruction: Option<&'static Instruction>,
     operand: Option<Operand>,
-    instruction_cycles: usize,
+    additional_cycles: usize,
     interrupt_request: Interrupt,
 }
 
@@ -102,7 +102,7 @@ impl CPUInterpreter {
             state: CPUState::Halt,
             instruction: None,
             operand: None,
-            instruction_cycles: 0,
+            additional_cycles: 0,
             interrupt_request: Interrupt::None,
         }
     }
@@ -136,7 +136,7 @@ impl CPU for CPUInterpreter {
 
         // increase the cycle lenght of the current instruction if the current instruction requires it
         if self.registers.extra_cycle {
-            self.instruction_cycles += 1;
+            self.additional_cycles += 1;
             self.registers.extra_cycle = false;
         }
 
@@ -153,7 +153,6 @@ impl CPU for CPUInterpreter {
                                     .expect("Illegal Opcode")
                                     .to_instruction()
                             );
-                            self.instruction_cycles = self.instruction.unwrap().cycles;
                             self.registers.pc += 1;
                         },
                         2 => {
@@ -212,14 +211,14 @@ impl CPU for CPUInterpreter {
                         }
                     };
 
-                    if self.op_cycle < self.instruction_cycles {
+                    if self.op_cycle < instruction.cycles + self.additional_cycles {
                         return msg;
                     } else {
                         // We're done with this instruction, prepare the next one!
                         self.op_cycle = 0;
                         self.addr_cycle = 0;
                         self.exec_cycle = 0;
-                        self.instruction_cycles = 0;
+                        self.additional_cycles = 0;
 
                         // read next instruction or handle interrupt request
                         match self.interrupt_request {
@@ -233,14 +232,12 @@ impl CPU for CPUInterpreter {
                                 self.operand = Some(Operand::Address(interrupt_vector));
                                 self.state = Execute;
                                 self.interrupt_request = Interrupt::None;
-                                self.instruction_cycles = instructions::IRQ_INSTRUCTION.cycles;
                             }
                             Interrupt::Nmi(interrupt_vector) => {
                                 self.instruction = Some(&instructions::NMI_INSTRUCTION);
                                 self.operand = Some(Operand::Address(interrupt_vector));
                                 self.state = Execute;
                                 self.interrupt_request = Interrupt::None;
-                                self.instruction_cycles = instructions::IRQ_INSTRUCTION.cycles;
                             }
                         }
 
@@ -283,6 +280,6 @@ impl CPU for CPUInterpreter {
         self.state = CPUState::Execute;
         self.operand = Some(Operand::Address(0xFFFC));
         self.instruction = Some(&instructions::RESET_INSTRUCTION);
-        self.instruction_cycles = RESET_INSTRUCTION.cycles;
+        self.additional_cycles = 0;
     }
 }
