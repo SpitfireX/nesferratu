@@ -70,6 +70,24 @@ pub static RESET_INSTRUCTION: Instruction = Instruction {
     addressing: "Reset Vector",
 };
 
+pub static IRQ_INSTRUCTION: Instruction = Instruction {
+    cycles: 8,
+    bytes: 0,
+    addr_delegate: addressing::imp, // addressing should be skipped altogether
+    op_delegate: OpDelegate::Address(ops::interrupt),
+    mnemonic: "IRQ",
+    addressing: "IRQ Vector",
+};
+
+pub static NMI_INSTRUCTION: Instruction = Instruction {
+    cycles: 8,
+    bytes: 0,
+    addr_delegate: addressing::imp, // addressing should be skipped altogether
+    op_delegate: OpDelegate::Address(ops::interrupt),
+    mnemonic: "NMI",
+    addressing: "NMI Vector",
+};
+
 // ⚠️ here be automatically generated dragons 🐉
 
 #[derive(num_derive::FromPrimitive, Debug, Copy, Clone)]

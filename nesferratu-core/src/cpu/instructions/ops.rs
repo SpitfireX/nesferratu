@@ -918,3 +918,32 @@ pub fn reset(regs: &mut CPURegisters, reset_vector: u16, cycle: usize) -> BusMes
         _ => panic!("Impossible cycle count in match, reset takes 8 cycles"),
     }
 }
+
+pub fn interrupt(regs: &mut CPURegisters, interrupt_vector: u16, cycle: usize) -> BusMessage {
+    match cycle {
+        x if x < 3 => Nop,
+        3 => Write{addr: 0x100 | regs.sp as u16, data: (regs.pc >> 8) as u8}, // push PC high byte to stack
+        4 => {
+            regs.sp = regs.sp.wrapping_sub(1);
+            Write{addr: 0x100 | regs.sp as u16, data: regs.pc as u8} // push PC low byte to stack
+        }
+        5 => {
+            regs.sp = regs.sp.wrapping_sub(1);
+            Write{addr: 0x100 | regs.sp as u16, data: regs.status & !0x10} // push status register with B forced to 0 to stack
+        }
+        6 => {
+            regs.sp = regs.sp.wrapping_sub(1);
+            Read{addr: interrupt_vector} // fetch PC low byte from vector
+        }
+        7 => {
+            regs.pc = regs.data as u16; // set PC low byte from stack
+            regs.set_flag(CPUFlags::I, true); // set interrupt disable flag
+            Read{addr: interrupt_vector+1} // fetch PC high byte from vector
+        }
+        8 => {
+            regs.pc |= (regs.data as u16) << 8; // set PC high byte from stack
+            Read{addr: regs.pc} // issue fetch for next opcode
+        }
+        _ => panic!("Impossible cycle count in match, interrupt handling takes 8 cycles")
+    }
+}

@@ -35,6 +35,13 @@ enum CPUState {
     Halt,
 }
 
+#[derive(Debug, PartialEq)]
+enum Interrupt {
+    None,
+    Irq(u16),
+    Nmi(u16),
+}
+
 #[derive(Default, Debug)]
 pub struct CPURegisters {
     a: u8,      // Accumulator
@@ -72,7 +79,7 @@ pub struct CPUInterpreter {
     registers: CPURegisters,
 
     // helper variables
-    total_cycles: usize,
+    pub total_cycles: usize,
     op_cycle: usize,
     addr_cycle: usize,
     exec_cycle: usize,
@@ -80,6 +87,7 @@ pub struct CPUInterpreter {
     instruction: Option<&'static Instruction>,
     operand: Option<Operand>,
     instruction_cycles: usize,
+    interrupt_request: Interrupt,
 }
 
 impl CPUInterpreter {
@@ -95,6 +103,7 @@ impl CPUInterpreter {
             instruction: None,
             operand: None,
             instruction_cycles: 0,
+            interrupt_request: Interrupt::None,
         }
     }
 
@@ -210,10 +219,31 @@ impl CPU for CPUInterpreter {
                         self.op_cycle = 0;
                         self.addr_cycle = 0;
                         self.exec_cycle = 0;
-                        self.instruction = None;
-                        self.operand = None;
                         self.instruction_cycles = 0;
-                        self.state = Fetch;
+
+                        // read next instruction or handle interrupt request
+                        match self.interrupt_request {
+                            Interrupt::None => {
+                                self.instruction = None;
+                                self.operand = None;
+                                self.state = Fetch;
+                            }
+                            Interrupt::Irq(interrupt_vector) => {
+                                self.instruction = Some(&instructions::IRQ_INSTRUCTION);
+                                self.operand = Some(Operand::Address(interrupt_vector));
+                                self.state = Execute;
+                                self.interrupt_request = Interrupt::None;
+                                self.instruction_cycles = instructions::IRQ_INSTRUCTION.cycles;
+                            }
+                            Interrupt::Nmi(interrupt_vector) => {
+                                self.instruction = Some(&instructions::NMI_INSTRUCTION);
+                                self.operand = Some(Operand::Address(interrupt_vector));
+                                self.state = Execute;
+                                self.interrupt_request = Interrupt::None;
+                                self.instruction_cycles = instructions::IRQ_INSTRUCTION.cycles;
+                            }
+                        }
+
                         return Read{addr: self.registers.pc};
                     }
                 }
@@ -226,11 +256,13 @@ impl CPU for CPUInterpreter {
     }
 
     fn irq(&mut self) {
-        todo!()
+        if !self.registers.get_flag(CPUFlags::I) && self.interrupt_request == Interrupt::None {
+            self.interrupt_request = Interrupt::Irq(0xFFFE);
+        }
     }
 
     fn nmi(&mut self) {
-        todo!()
+        self.interrupt_request = Interrupt::Nmi(0xFFFA);
     }
 
     fn reset(&mut self) {

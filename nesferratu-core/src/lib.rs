@@ -30,6 +30,10 @@ impl Bus {
     }
 
     pub fn clock(&mut self) {
+        if self.cpu.total_cycles == 20 {
+            self.cpu.irq();
+        }
+
         let msg = self.cpu.clock(self.fetch);
 
         match msg {
@@ -201,7 +205,12 @@ impl Memory {
         // ];
 
         let program = [
-            0x00u8, // BRK
+            0x58u8, // CLI
+            0x69,   // ADC imm
+            0x01,
+            0x4C,   // JMP abs
+            0x37,
+            0x13,
             0x00,
             0x00,
             0x00,
@@ -212,11 +221,8 @@ impl Memory {
             0x00,
             0x00,
             0x00,
-            0x00,
-            0x00,
-            0x00,
-            0x00,
-            0x00,
+            0xA2,   // LDX imm
+            0x69,
             0x40    // RTI
         ];
 
