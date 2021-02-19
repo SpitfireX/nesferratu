@@ -45,7 +45,9 @@ pub fn sbc_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMe
             // invert operand
             let immediate = regs.data ^ 0xFF;
 
-            let result: usize = regs.a as usize + immediate as usize + regs.get_flag(CPUFlags::C) as usize;
+            let result: usize = (regs.a as usize)
+                                    .wrapping_add(immediate as usize)
+                                    .wrapping_add(regs.get_flag(CPUFlags::C) as usize);
 
             // carry flag
             regs.set_flag(CPUFlags::C, result > 255);
@@ -129,7 +131,7 @@ pub fn inc_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMe
     match cycle {
         1 => Read{addr: address},
         2 => {
-            regs.data += 1;
+            regs.data = regs.data.wrapping_add(1);
             regs.set_flag(CPUFlags::Z, regs.data == 0);
             regs.set_flag(CPUFlags::N, regs.data & 0x80 == 0x80);
             Nop
@@ -210,7 +212,7 @@ pub fn dec_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMe
     match cycle {
         1 => Read{addr: address},
         2 => {
-            regs.data -= 1;
+            regs.data = regs.data.wrapping_sub(1);
             regs.set_flag(CPUFlags::Z, regs.data == 0);
             regs.set_flag(CPUFlags::N, regs.data & 0x80 == 0x80);
             Nop
@@ -233,7 +235,7 @@ pub fn tsx_implied(regs: &mut CPURegisters, cycle: usize) -> BusMessage {
 }
 
 pub fn inx_implied(regs: &mut CPURegisters, cycle: usize) -> BusMessage {
-    regs.x += 1;
+    regs.x = regs.x.wrapping_add(1);
     regs.set_flag(CPUFlags::Z, regs.x == 0);
     regs.set_flag(CPUFlags::N, regs.x & 0x80 == 0x80);
     Nop
@@ -267,7 +269,7 @@ pub fn brk_implied(regs: &mut CPURegisters, cycle: usize) -> BusMessage {
 }
 
 pub fn iny_implied(regs: &mut CPURegisters, cycle: usize) -> BusMessage {
-    regs.y += 1;
+    regs.y = regs.y.wrapping_add(1);
     regs.set_flag(CPUFlags::Z, regs.y == 0);
     regs.set_flag(CPUFlags::N, regs.y & 0x80 == 0x80);
     Nop
@@ -282,7 +284,9 @@ pub fn sbc_immediate(regs: &mut CPURegisters, mut immediate: u8, _cycle: usize) 
     // invert operand
     immediate ^= 0xFF;
     
-    let result: usize = regs.a as usize + immediate as usize + regs.get_flag(CPUFlags::C) as usize;
+    let result: usize = (regs.a as usize)
+                            .wrapping_add(immediate as usize)
+                            .wrapping_add(regs.get_flag(CPUFlags::C) as usize);
 
     // carry flag
     regs.set_flag(CPUFlags::C, result > 255);
@@ -396,7 +400,7 @@ pub fn rol_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMe
 }
 
 pub fn dex_implied(regs: &mut CPURegisters, cycle: usize) -> BusMessage {
-    regs.x -= 1;
+    regs.x = regs.x.wrapping_sub(1);
     regs.set_flag(CPUFlags::Z, regs.x == 0);
     regs.set_flag(CPUFlags::N, regs.x & 0x80 == 0x80);
     Nop
@@ -482,7 +486,9 @@ pub fn nop_implied(regs: &mut CPURegisters, cycle: usize) -> BusMessage {
 }
 
 pub fn adc_immediate(regs: &mut CPURegisters, immediate: u8, _cycle: usize) -> BusMessage {
-    let result: usize = regs.a as usize + immediate as usize + regs.get_flag(CPUFlags::C) as usize;
+    let result: usize = (regs.a as usize)
+                            .wrapping_add(immediate as usize)
+                            .wrapping_add(regs.get_flag(CPUFlags::C) as usize);
 
     // carry flag
     regs.set_flag(CPUFlags::C, result > 255);
@@ -550,7 +556,7 @@ pub fn tax_implied(regs: &mut CPURegisters, cycle: usize) -> BusMessage {
 }
 
 pub fn dey_implied(regs: &mut CPURegisters, cycle: usize) -> BusMessage {
-    regs.y -= 1;
+    regs.y = regs.y.wrapping_sub(1);
     regs.set_flag(CPUFlags::Z, regs.y == 0);
     regs.set_flag(CPUFlags::N, regs.y & 0x80 == 0x80);
     Nop
@@ -794,7 +800,9 @@ pub fn adc_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMe
     match cycle {
         1 => BusMessage::Read{addr: address}, // fetch value
         2 => {
-            let result: usize = regs.a as usize + regs.data as usize + regs.get_flag(CPUFlags::C) as usize;
+            let result: usize = (regs.a as usize)
+                                    .wrapping_add(regs.data as usize)
+                                    .wrapping_add(regs.get_flag(CPUFlags::C) as usize);
 
             // carry flag
             regs.set_flag(CPUFlags::C, result > 255);
