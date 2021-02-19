@@ -324,7 +324,26 @@ pub fn sec_implied(regs: &mut CPURegisters, cycle: usize) -> BusMessage {
 }
 
 pub fn bne_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMessage {
-    todo!("functionality for bne_address()");
+    match cycle {
+        1 => {
+            if !regs.get_flag(CPUFlags::Z) { // zero flag not set
+                regs.extra_cycle = true;
+            }
+            Nop
+        }
+        2 => { // can only be reached if branch condition met
+            // branch ops need one extra cycle if the branch jumps across a page boundary
+            if regs.pc >> 8 != address >> 8 {
+                regs.extra_cycle = true;
+            }
+
+            println!("new address after branch: {:04X}", address);
+            regs.pc = address;
+            
+            Nop
+        }
+        _ => Nop,
+    }
 }
 
 pub fn sty_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMessage {
@@ -498,7 +517,7 @@ pub fn stx_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMe
 pub fn bmi_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMessage {
     match cycle {
         1 => {
-            if regs.get_flag(CPUFlags::N) {
+            if regs.get_flag(CPUFlags::N) { // negative flag set
                 regs.extra_cycle = true;
             }
             Nop
@@ -576,7 +595,26 @@ pub fn lsr_implied(regs: &mut CPURegisters, cycle: usize) -> BusMessage {
 }
 
 pub fn bvs_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMessage {
-    todo!("functionality for bvs_address()");
+    match cycle {
+        1 => {
+            if regs.get_flag(CPUFlags::V) { // overflow flag set
+                regs.extra_cycle = true;
+            }
+            Nop
+        }
+        2 => { // can only be reached if branch condition met
+            // branch ops need one extra cycle if the branch jumps across a page boundary
+            if regs.pc >> 8 != address >> 8 {
+                regs.extra_cycle = true;
+            }
+
+            println!("new address after branch: {:04X}", address);
+            regs.pc = address;
+            
+            Nop
+        }
+        _ => Nop,
+    }
 }
 
 pub fn rts_implied(regs: &mut CPURegisters, cycle: usize) -> BusMessage {
@@ -696,7 +734,26 @@ pub fn cmp_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMe
 }
 
 pub fn beq_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMessage {
-    todo!("functionality for beq_address()");
+    match cycle {
+        1 => {
+            if regs.get_flag(CPUFlags::Z) { // zero flag set
+                regs.extra_cycle = true;
+            }
+            Nop
+        }
+        2 => { // can only be reached if branch condition met
+            // branch ops need one extra cycle if the branch jumps across a page boundary
+            if regs.pc >> 8 != address >> 8 {
+                regs.extra_cycle = true;
+            }
+
+            println!("new address after branch: {:04X}", address);
+            regs.pc = address;
+            
+            Nop
+        }
+        _ => Nop,
+    }
 }
 
 pub fn lda_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMessage {
@@ -759,7 +816,26 @@ pub fn adc_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMe
 }
 
 pub fn bcs_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMessage {
-    todo!("functionality for bcs_address()");
+    match cycle {
+        1 => {
+            if regs.get_flag(CPUFlags::C) { // carry flag set
+                regs.extra_cycle = true;
+            }
+            Nop
+        }
+        2 => { // can only be reached if branch condition met
+            // branch ops need one extra cycle if the branch jumps across a page boundary
+            if regs.pc >> 8 != address >> 8 {
+                regs.extra_cycle = true;
+            }
+
+            println!("new address after branch: {:04X}", address);
+            regs.pc = address;
+            
+            Nop
+        }
+        _ => Nop,
+    }
 }
 
 pub fn ror_implied(regs: &mut CPURegisters, cycle: usize) -> BusMessage {
@@ -891,7 +967,26 @@ pub fn clc_implied(regs: &mut CPURegisters, cycle: usize) -> BusMessage {
 }
 
 pub fn bpl_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMessage {
-    todo!("functionality for bpl_address()");
+    match cycle {
+        1 => {
+            if !regs.get_flag(CPUFlags::N) { // negative flag not set
+                regs.extra_cycle = true;
+            }
+            Nop
+        }
+        2 => { // can only be reached if branch condition met
+            // branch ops need one extra cycle if the branch jumps across a page boundary
+            if regs.pc >> 8 != address >> 8 {
+                regs.extra_cycle = true;
+            }
+
+            println!("new address after branch: {:04X}", address);
+            regs.pc = address;
+            
+            Nop
+        }
+        _ => Nop,
+    }
 }
 
 pub fn bit_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMessage {
@@ -921,11 +1016,49 @@ pub fn txa_implied(regs: &mut CPURegisters, cycle: usize) -> BusMessage {
 }
 
 pub fn bvc_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMessage {
-    todo!("functionality for bvc_address()");
+    match cycle {
+        1 => {
+            if !regs.get_flag(CPUFlags::V) { // overflow flag not set
+                regs.extra_cycle = true;
+            }
+            Nop
+        }
+        2 => { // can only be reached if branch condition met
+            // branch ops need one extra cycle if the branch jumps across a page boundary
+            if regs.pc >> 8 != address >> 8 {
+                regs.extra_cycle = true;
+            }
+
+            println!("new address after branch: {:04X}", address);
+            regs.pc = address;
+            
+            Nop
+        }
+        _ => Nop,
+    }
 }
 
 pub fn bcc_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMessage {
-    todo!("functionality for bcc_address()");
+    match cycle {
+        1 => {
+            if !regs.get_flag(CPUFlags::C) { // carry flag not set
+                regs.extra_cycle = true;
+            }
+            Nop
+        }
+        2 => { // can only be reached if branch condition met
+            // branch ops need one extra cycle if the branch jumps across a page boundary
+            if regs.pc >> 8 != address >> 8 {
+                regs.extra_cycle = true;
+            }
+
+            println!("new address after branch: {:04X}", address);
+            regs.pc = address;
+            
+            Nop
+        }
+        _ => Nop,
+    }
 }
 
 pub fn reset(regs: &mut CPURegisters, reset_vector: u16, cycle: usize) -> BusMessage {
