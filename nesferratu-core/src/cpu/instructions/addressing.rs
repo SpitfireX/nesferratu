@@ -65,7 +65,7 @@ pub fn imp(_regs: &mut CPURegisters, _cycle: usize) -> AddrDelegateReturn {
 pub fn rel(regs: &mut CPURegisters, cycle: usize) -> AddrDelegateReturn {
     let offset = regs.o1 as i8;
     let mut new_pc = regs.pc as i32;
-    new_pc -= offset as i32;
+    new_pc += offset as i32;
 
     AddrDelegateReturn::Return(Operand::Address(new_pc as u16))
 }
