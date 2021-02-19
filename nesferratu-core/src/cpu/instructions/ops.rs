@@ -519,7 +519,21 @@ pub fn dey_implied(regs: &mut CPURegisters, cycle: usize) -> BusMessage {
 }
 
 pub fn eor_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMessage {
-    todo!("functionality for eor_address()");
+    match cycle {
+        1 => Read{addr: address}, // fetch value from address
+        2 => {
+            regs.a ^= regs.data; // fetched value
+
+            // zero flag
+            regs.set_flag(CPUFlags::Z, regs.a == 0);
+        
+            // negative flag
+            regs.set_flag(CPUFlags::Z, regs.a & 0x80 == 0x80);
+        
+            Nop
+        }
+        _ => Nop
+    }
 }
 
 pub fn lsr_implied(regs: &mut CPURegisters, cycle: usize) -> BusMessage {
@@ -795,7 +809,15 @@ pub fn and_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMe
 }
 
 pub fn eor_immediate(regs: &mut CPURegisters, immediate: u8, _cycle: usize) -> BusMessage {
-    todo!("functionality for eor_immediate()");
+    regs.a ^= immediate;
+
+    // zero flag
+    regs.set_flag(CPUFlags::Z, regs.a == 0);
+
+    // negative flag
+    regs.set_flag(CPUFlags::Z, regs.a & 0x80 == 0x80);
+
+    Nop
 }
 
 pub fn pla_implied(regs: &mut CPURegisters, cycle: usize) -> BusMessage {
