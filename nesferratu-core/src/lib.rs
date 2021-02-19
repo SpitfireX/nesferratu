@@ -204,13 +204,35 @@ impl Memory {
         //     0x60
         // ];
 
+        // let program = [
+        //     0x58u8, // CLI
+        //     0x69,   // ADC imm
+        //     0x01,
+        //     0x4C,   // JMP abs
+        //     0x37,
+        //     0x13,
+        //     0x00,
+        //     0x00,
+        //     0x00,
+        //     0x00,
+        //     0x00,
+        //     0x00,
+        //     0x00,
+        //     0x00,
+        //     0x00,
+        //     0x00,
+        //     0xA2,   // LDX imm
+        //     0x69,
+        //     0x40    // RTI
+        // ];
+
         let program = [
-            0x58u8, // CLI
-            0x69,   // ADC imm
-            0x01,
-            0x4C,   // JMP abs
-            0x37,
-            0x13,
+            0xA9u8, // LDA imm
+            0xFF,
+            0x30,   // BMI
+            -100i8 as u8,
+            0x00,
+            0x00,
             0x00,
             0x00,
             0x00,
@@ -223,7 +245,6 @@ impl Memory {
             0x00,
             0xA2,   // LDX imm
             0x69,
-            0x40    // RTI
         ];
 
         // cheeky debug value

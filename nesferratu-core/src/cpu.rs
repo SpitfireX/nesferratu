@@ -211,7 +211,7 @@ impl CPU for CPUInterpreter {
                         }
                     };
 
-                    if self.op_cycle < instruction.cycles + self.additional_cycles {
+                    if self.op_cycle < instruction.cycles + self.additional_cycles || self.registers.extra_cycle {
                         return msg;
                     } else {
                         // We're done with this instruction, prepare the next one!

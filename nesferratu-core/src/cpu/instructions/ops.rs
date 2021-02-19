@@ -496,7 +496,26 @@ pub fn stx_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMe
 }
 
 pub fn bmi_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMessage {
-    todo!("functionality for bmi_address()");
+    match cycle {
+        1 => {
+            if regs.get_flag(CPUFlags::N) {
+                regs.extra_cycle = true;
+            }
+            Nop
+        }
+        2 => { // can only be reached if branch condition met
+            // branch ops need one extra cycle if the branch jumps across a page boundary
+            if regs.pc >> 8 != address >> 8 {
+                regs.extra_cycle = true;
+            }
+
+            println!("new address after branch: {:04X}", address);
+            regs.pc = address;
+            
+            Nop
+        }
+        _ => Nop,
+    }
 }
 
 pub fn ldy_immediate(regs: &mut CPURegisters, immediate: u8, _cycle: usize) -> BusMessage {
