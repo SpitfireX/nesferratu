@@ -2,17 +2,17 @@ use crate::cpu::{CpuState, CpuFlags};
 use crate::BusMessage;
 use crate::BusMessage::*;
 
-pub fn txs_implied(s: &mut CpuState, cycle: usize) -> BusMessage {
+pub fn txs_implied(s: &mut CpuState, cycle: u8) -> BusMessage {
     s.regs.sp = s.regs.x;
     Nop
 }
 
-pub fn cld_implied(s: &mut CpuState, cycle: usize) -> BusMessage {
+pub fn cld_implied(s: &mut CpuState, cycle: u8) -> BusMessage {
     s.regs.set_flag(CpuFlags::D, false);
     Nop
 }
 
-pub fn asl_address(s: &mut CpuState, address: u16, cycle: usize) -> BusMessage {
+pub fn asl_address(s: &mut CpuState, address: u16, cycle: u8) -> BusMessage {
     match cycle {
         1 => Read{addr: address}, // fetch value
         2 => {
@@ -33,12 +33,12 @@ pub fn asl_address(s: &mut CpuState, address: u16, cycle: usize) -> BusMessage {
     }
 }
 
-pub fn tay_implied(s: &mut CpuState, cycle: usize) -> BusMessage {
+pub fn tay_implied(s: &mut CpuState, cycle: u8) -> BusMessage {
     s.regs.y = s.regs.a;
     Nop
 }
 
-pub fn sbc_address(s: &mut CpuState, address: u16, cycle: usize) -> BusMessage {
+pub fn sbc_address(s: &mut CpuState, address: u16, cycle: u8) -> BusMessage {
     match cycle {
         1 => BusMessage::Read{addr: address}, // fetch value
         2 => {
@@ -68,7 +68,7 @@ pub fn sbc_address(s: &mut CpuState, address: u16, cycle: usize) -> BusMessage {
     }
 }
 
-pub fn jsr_address(s: &mut CpuState, address: u16, cycle: usize) -> BusMessage {
+pub fn jsr_address(s: &mut CpuState, address: u16, cycle: u8) -> BusMessage {
     match cycle {
         1 => Write{addr: 0x100 | s.regs.sp as u16, data: ((s.regs.pc-1) >> 8) as u8}, // push PC high byte to stack
         2 => {
@@ -84,14 +84,14 @@ pub fn jsr_address(s: &mut CpuState, address: u16, cycle: usize) -> BusMessage {
     }
 }
 
-pub fn lda_immediate(s: &mut CpuState, immediate: u8, _cycle: usize) -> BusMessage {
+pub fn lda_immediate(s: &mut CpuState, immediate: u8, _cycle: u8) -> BusMessage {
     s.regs.a = immediate;
     s.regs.set_flag(CpuFlags::Z, s.regs.a == 0);
     s.regs.set_flag(CpuFlags::N, s.regs.a & 0x80 == 0x80);
     Nop
 }
 
-pub fn cpy_immediate(s: &mut CpuState, immediate: u8, cycle: usize) -> BusMessage {
+pub fn cpy_immediate(s: &mut CpuState, immediate: u8, cycle: u8) -> BusMessage {
     match cycle {
         1 => {
             let result = s.regs.y.wrapping_sub(s.data); // CPY performs Y - M and sets flags
@@ -111,7 +111,7 @@ pub fn cpy_immediate(s: &mut CpuState, immediate: u8, cycle: usize) -> BusMessag
     }
 }
 
-pub fn pha_implied(s: &mut CpuState, cycle: usize) -> BusMessage {
+pub fn pha_implied(s: &mut CpuState, cycle: u8) -> BusMessage {
     match cycle {
         1 => Write{addr: 0x100 | s.regs.sp as u16, data: s.regs.a},
         2 => {
@@ -122,12 +122,12 @@ pub fn pha_implied(s: &mut CpuState, cycle: usize) -> BusMessage {
     }
 }
 
-pub fn sei_implied(s: &mut CpuState, cycle: usize) -> BusMessage {
+pub fn sei_implied(s: &mut CpuState, cycle: u8) -> BusMessage {
     s.regs.set_flag(CpuFlags::I, true);
     Nop
 }
 
-pub fn inc_address(s: &mut CpuState, address: u16, cycle: usize) -> BusMessage {
+pub fn inc_address(s: &mut CpuState, address: u16, cycle: u8) -> BusMessage {
     match cycle {
         1 => Read{addr: address},
         2 => {
@@ -141,7 +141,7 @@ pub fn inc_address(s: &mut CpuState, address: u16, cycle: usize) -> BusMessage {
     }
 }
 
-pub fn cpx_immediate(s: &mut CpuState, immediate: u8, cycle: usize) -> BusMessage {
+pub fn cpx_immediate(s: &mut CpuState, immediate: u8, cycle: u8) -> BusMessage {
     match cycle {
         1 => {
             let result = s.regs.x.wrapping_sub(immediate); // CPX performs X - M and sets flags
@@ -161,7 +161,7 @@ pub fn cpx_immediate(s: &mut CpuState, immediate: u8, cycle: usize) -> BusMessag
     }
 }
 
-pub fn cpy_address(s: &mut CpuState, address: u16, cycle: usize) -> BusMessage {
+pub fn cpy_address(s: &mut CpuState, address: u16, cycle: u8) -> BusMessage {
     match cycle {
         1 => Read{addr: address}, // fetch value M from memory
         2 => {
@@ -182,7 +182,7 @@ pub fn cpy_address(s: &mut CpuState, address: u16, cycle: usize) -> BusMessage {
     }
 }
 
-pub fn rol_implied(s: &mut CpuState, cycle: usize) -> BusMessage {
+pub fn rol_implied(s: &mut CpuState, cycle: u8) -> BusMessage {
     match cycle {
         1 => {
             // save status register
@@ -208,7 +208,7 @@ pub fn rol_implied(s: &mut CpuState, cycle: usize) -> BusMessage {
     }
 }
 
-pub fn dec_address(s: &mut CpuState, address: u16, cycle: usize) -> BusMessage {
+pub fn dec_address(s: &mut CpuState, address: u16, cycle: u8) -> BusMessage {
     match cycle {
         1 => Read{addr: address},
         2 => {
@@ -222,26 +222,26 @@ pub fn dec_address(s: &mut CpuState, address: u16, cycle: usize) -> BusMessage {
     }
 }
 
-pub fn ldx_immediate(s: &mut CpuState, immediate: u8, _cycle: usize) -> BusMessage {
+pub fn ldx_immediate(s: &mut CpuState, immediate: u8, _cycle: u8) -> BusMessage {
     s.regs.x = immediate;
     s.regs.set_flag(CpuFlags::Z, s.regs.x == 0);
     s.regs.set_flag(CpuFlags::N, s.regs.x & 0x80 == 0x80);
     Nop
 }
 
-pub fn tsx_implied(s: &mut CpuState, cycle: usize) -> BusMessage {
+pub fn tsx_implied(s: &mut CpuState, cycle: u8) -> BusMessage {
     s.regs.x = s.regs.sp;
     Nop
 }
 
-pub fn inx_implied(s: &mut CpuState, cycle: usize) -> BusMessage {
+pub fn inx_implied(s: &mut CpuState, cycle: u8) -> BusMessage {
     s.regs.x = s.regs.x.wrapping_add(1);
     s.regs.set_flag(CpuFlags::Z, s.regs.x == 0);
     s.regs.set_flag(CpuFlags::N, s.regs.x & 0x80 == 0x80);
     Nop
 }
 
-pub fn brk_implied(s: &mut CpuState, cycle: usize) -> BusMessage {
+pub fn brk_implied(s: &mut CpuState, cycle: u8) -> BusMessage {
     match cycle {
         1 => Write{addr: 0x100 | s.regs.sp as u16, data: ((s.regs.pc+1) >> 8) as u8}, // push BRK PC+2 high byte to stack
         2 => {
@@ -268,19 +268,19 @@ pub fn brk_implied(s: &mut CpuState, cycle: usize) -> BusMessage {
     }
 }
 
-pub fn iny_implied(s: &mut CpuState, cycle: usize) -> BusMessage {
+pub fn iny_implied(s: &mut CpuState, cycle: u8) -> BusMessage {
     s.regs.y = s.regs.y.wrapping_add(1);
     s.regs.set_flag(CpuFlags::Z, s.regs.y == 0);
     s.regs.set_flag(CpuFlags::N, s.regs.y & 0x80 == 0x80);
     Nop
 }
 
-pub fn sed_implied(s: &mut CpuState, cycle: usize) -> BusMessage {
+pub fn sed_implied(s: &mut CpuState, cycle: u8) -> BusMessage {
     s.regs.set_flag(CpuFlags::D, true);
     Nop
 }
 
-pub fn sbc_immediate(s: &mut CpuState, mut immediate: u8, _cycle: usize) -> BusMessage {
+pub fn sbc_immediate(s: &mut CpuState, mut immediate: u8, _cycle: u8) -> BusMessage {
     // invert operand
     immediate ^= 0xFF;
     
@@ -304,7 +304,7 @@ pub fn sbc_immediate(s: &mut CpuState, mut immediate: u8, _cycle: usize) -> BusM
     Nop
 }
 
-pub fn ora_address(s: &mut CpuState, address: u16, cycle: usize) -> BusMessage {
+pub fn ora_address(s: &mut CpuState, address: u16, cycle: u8) -> BusMessage {
     match cycle {
         1 => Read{addr: address}, // fetch value from address
         2 => {
@@ -322,12 +322,12 @@ pub fn ora_address(s: &mut CpuState, address: u16, cycle: usize) -> BusMessage {
     }
 }
 
-pub fn sec_implied(s: &mut CpuState, cycle: usize) -> BusMessage {
+pub fn sec_implied(s: &mut CpuState, cycle: u8) -> BusMessage {
     s.regs.set_flag(CpuFlags::C, true);
     Nop
 }
 
-pub fn bne_address(s: &mut CpuState, address: u16, cycle: usize) -> BusMessage {
+pub fn bne_address(s: &mut CpuState, address: u16, cycle: u8) -> BusMessage {
     match cycle {
         1 => {
             if !s.regs.get_flag(CpuFlags::Z) { // zero flag not set
@@ -350,7 +350,7 @@ pub fn bne_address(s: &mut CpuState, address: u16, cycle: usize) -> BusMessage {
     }
 }
 
-pub fn sty_address(s: &mut CpuState, address: u16, cycle: usize) -> BusMessage {
+pub fn sty_address(s: &mut CpuState, address: u16, cycle: u8) -> BusMessage {
     match cycle {
         1 => {
             Write{addr: address, data: s.regs.y}
@@ -359,7 +359,7 @@ pub fn sty_address(s: &mut CpuState, address: u16, cycle: usize) -> BusMessage {
     }
 }
 
-pub fn ldy_address(s: &mut CpuState, address: u16, cycle: usize) -> BusMessage {
+pub fn ldy_address(s: &mut CpuState, address: u16, cycle: u8) -> BusMessage {
     match cycle {
         1 => Read{addr: address},
         2 => {
@@ -372,7 +372,7 @@ pub fn ldy_address(s: &mut CpuState, address: u16, cycle: usize) -> BusMessage {
     }
 }
 
-pub fn rol_address(s: &mut CpuState, address: u16, cycle: usize) -> BusMessage {
+pub fn rol_address(s: &mut CpuState, address: u16, cycle: u8) -> BusMessage {
     match cycle {
         1 => Read{addr: address}, // fetch value
         2 => {
@@ -399,14 +399,14 @@ pub fn rol_address(s: &mut CpuState, address: u16, cycle: usize) -> BusMessage {
     }
 }
 
-pub fn dex_implied(s: &mut CpuState, cycle: usize) -> BusMessage {
+pub fn dex_implied(s: &mut CpuState, cycle: u8) -> BusMessage {
     s.regs.x = s.regs.x.wrapping_sub(1);
     s.regs.set_flag(CpuFlags::Z, s.regs.x == 0);
     s.regs.set_flag(CpuFlags::N, s.regs.x & 0x80 == 0x80);
     Nop
 }
 
-pub fn php_implied(s: &mut CpuState, cycle: usize) -> BusMessage {
+pub fn php_implied(s: &mut CpuState, cycle: u8) -> BusMessage {
     match cycle {
         1 => Write{addr: 0x100 | s.regs.sp as u16, data: s.regs.status},
         2 => {
@@ -417,7 +417,7 @@ pub fn php_implied(s: &mut CpuState, cycle: usize) -> BusMessage {
     }
 }
 
-pub fn rti_implied(s: &mut CpuState, cycle: usize) -> BusMessage {
+pub fn rti_implied(s: &mut CpuState, cycle: u8) -> BusMessage {
     match cycle {
         1 => {
             s.regs.sp = s.regs.sp.wrapping_add(1); // increment stack pointer
@@ -443,7 +443,7 @@ pub fn rti_implied(s: &mut CpuState, cycle: usize) -> BusMessage {
     }
 }
 
-pub fn asl_implied(s: &mut CpuState, cycle: usize) -> BusMessage {
+pub fn asl_implied(s: &mut CpuState, cycle: u8) -> BusMessage {
     match cycle {
         1 => {
             // carry flag contains old MSB
@@ -463,7 +463,7 @@ pub fn asl_implied(s: &mut CpuState, cycle: usize) -> BusMessage {
     }
 }
 
-pub fn ldx_address(s: &mut CpuState, address: u16, cycle: usize) -> BusMessage {
+pub fn ldx_address(s: &mut CpuState, address: u16, cycle: u8) -> BusMessage {
     match cycle {
         1 => Read{addr: address},
         2 => {
@@ -476,16 +476,16 @@ pub fn ldx_address(s: &mut CpuState, address: u16, cycle: usize) -> BusMessage {
     }
 }
 
-pub fn clv_implied(s: &mut CpuState, cycle: usize) -> BusMessage {
+pub fn clv_implied(s: &mut CpuState, cycle: u8) -> BusMessage {
     s.regs.set_flag(CpuFlags::V, false);
     Nop
 }
 
-pub fn nop_implied(s: &mut CpuState, cycle: usize) -> BusMessage {
+pub fn nop_implied(s: &mut CpuState, cycle: u8) -> BusMessage {
     Nop
 }
 
-pub fn adc_immediate(s: &mut CpuState, immediate: u8, _cycle: usize) -> BusMessage {
+pub fn adc_immediate(s: &mut CpuState, immediate: u8, _cycle: u8) -> BusMessage {
     let result: usize = (s.regs.a as usize)
                             .wrapping_add(immediate as usize)
                             .wrapping_add(s.regs.get_flag(CpuFlags::C) as usize);
@@ -506,12 +506,12 @@ pub fn adc_immediate(s: &mut CpuState, immediate: u8, _cycle: usize) -> BusMessa
     Nop
 }
 
-pub fn cli_implied(s: &mut CpuState, cycle: usize) -> BusMessage {
+pub fn cli_implied(s: &mut CpuState, cycle: u8) -> BusMessage {
     s.regs.set_flag(CpuFlags::I, false);
     Nop
 }
 
-pub fn stx_address(s: &mut CpuState, address: u16, cycle: usize) -> BusMessage {
+pub fn stx_address(s: &mut CpuState, address: u16, cycle: u8) -> BusMessage {
     match cycle {
         1 => {
             Write{addr: address, data: s.regs.x}
@@ -520,7 +520,7 @@ pub fn stx_address(s: &mut CpuState, address: u16, cycle: usize) -> BusMessage {
     }
 }
 
-pub fn bmi_address(s: &mut CpuState, address: u16, cycle: usize) -> BusMessage {
+pub fn bmi_address(s: &mut CpuState, address: u16, cycle: u8) -> BusMessage {
     match cycle {
         1 => {
             if s.regs.get_flag(CpuFlags::N) { // negative flag set
@@ -543,26 +543,26 @@ pub fn bmi_address(s: &mut CpuState, address: u16, cycle: usize) -> BusMessage {
     }
 }
 
-pub fn ldy_immediate(s: &mut CpuState, immediate: u8, _cycle: usize) -> BusMessage {
+pub fn ldy_immediate(s: &mut CpuState, immediate: u8, _cycle: u8) -> BusMessage {
     s.regs.y = immediate;
     s.regs.set_flag(CpuFlags::Z, s.regs.y == 0);
     s.regs.set_flag(CpuFlags::N, s.regs.y & 0x80 == 0x80);
     Nop
 }
 
-pub fn tax_implied(s: &mut CpuState, cycle: usize) -> BusMessage {
+pub fn tax_implied(s: &mut CpuState, cycle: u8) -> BusMessage {
     s.regs.x = s.regs.a;
     Nop
 }
 
-pub fn dey_implied(s: &mut CpuState, cycle: usize) -> BusMessage {
+pub fn dey_implied(s: &mut CpuState, cycle: u8) -> BusMessage {
     s.regs.y = s.regs.y.wrapping_sub(1);
     s.regs.set_flag(CpuFlags::Z, s.regs.y == 0);
     s.regs.set_flag(CpuFlags::N, s.regs.y & 0x80 == 0x80);
     Nop
 }
 
-pub fn eor_address(s: &mut CpuState, address: u16, cycle: usize) -> BusMessage {
+pub fn eor_address(s: &mut CpuState, address: u16, cycle: u8) -> BusMessage {
     match cycle {
         1 => Read{addr: address}, // fetch value from address
         2 => {
@@ -580,7 +580,7 @@ pub fn eor_address(s: &mut CpuState, address: u16, cycle: usize) -> BusMessage {
     }
 }
 
-pub fn lsr_implied(s: &mut CpuState, cycle: usize) -> BusMessage {
+pub fn lsr_implied(s: &mut CpuState, cycle: u8) -> BusMessage {
     match cycle {
         1 => {
             // carry flag contains old LSB
@@ -600,7 +600,7 @@ pub fn lsr_implied(s: &mut CpuState, cycle: usize) -> BusMessage {
     }
 }
 
-pub fn bvs_address(s: &mut CpuState, address: u16, cycle: usize) -> BusMessage {
+pub fn bvs_address(s: &mut CpuState, address: u16, cycle: u8) -> BusMessage {
     match cycle {
         1 => {
             if s.regs.get_flag(CpuFlags::V) { // overflow flag set
@@ -623,7 +623,7 @@ pub fn bvs_address(s: &mut CpuState, address: u16, cycle: usize) -> BusMessage {
     }
 }
 
-pub fn rts_implied(s: &mut CpuState, cycle: usize) -> BusMessage {
+pub fn rts_implied(s: &mut CpuState, cycle: u8) -> BusMessage {
     match cycle {
         1 => {
             s.regs.sp = s.regs.sp.wrapping_add(1); // increment stack pointer
@@ -646,12 +646,12 @@ pub fn rts_implied(s: &mut CpuState, cycle: usize) -> BusMessage {
     }
 }
 
-pub fn tya_implied(s: &mut CpuState, cycle: usize) -> BusMessage {
+pub fn tya_implied(s: &mut CpuState, cycle: u8) -> BusMessage {
     s.regs.a = s.regs.y;
     Nop
 }
 
-pub fn plp_implied(s: &mut CpuState, cycle: usize) -> BusMessage {
+pub fn plp_implied(s: &mut CpuState, cycle: u8) -> BusMessage {
     match cycle {
         1 => {
             s.regs.sp = s.regs.sp.wrapping_add(1); // increment stack pointer
@@ -665,7 +665,7 @@ pub fn plp_implied(s: &mut CpuState, cycle: usize) -> BusMessage {
     }
 }
 
-pub fn and_immediate(s: &mut CpuState, immediate: u8, _cycle: usize) -> BusMessage {
+pub fn and_immediate(s: &mut CpuState, immediate: u8, _cycle: u8) -> BusMessage {
     s.regs.a &= immediate;
 
     // zero flag
@@ -677,12 +677,12 @@ pub fn and_immediate(s: &mut CpuState, immediate: u8, _cycle: usize) -> BusMessa
     Nop
 }
 
-pub fn jmp_address(s: &mut CpuState, address: u16, cycle: usize) -> BusMessage {
+pub fn jmp_address(s: &mut CpuState, address: u16, cycle: u8) -> BusMessage {
     s.regs.pc = address;
     Nop
 }
 
-pub fn ror_address(s: &mut CpuState, address: u16, cycle: usize) -> BusMessage {
+pub fn ror_address(s: &mut CpuState, address: u16, cycle: u8) -> BusMessage {
     match cycle {
         1 => Read{addr: address}, // fetch value
         2 => {
@@ -709,7 +709,7 @@ pub fn ror_address(s: &mut CpuState, address: u16, cycle: usize) -> BusMessage {
     }
 }
 
-pub fn sta_address(s: &mut CpuState, address: u16, cycle: usize) -> BusMessage {
+pub fn sta_address(s: &mut CpuState, address: u16, cycle: u8) -> BusMessage {
     match cycle {
         1 => {
             Write{addr: address, data: s.regs.a}
@@ -718,7 +718,7 @@ pub fn sta_address(s: &mut CpuState, address: u16, cycle: usize) -> BusMessage {
     }
 }
 
-pub fn cmp_address(s: &mut CpuState, address: u16, cycle: usize) -> BusMessage {
+pub fn cmp_address(s: &mut CpuState, address: u16, cycle: u8) -> BusMessage {
     match cycle {
         1 => Read{addr: address}, // fetch value M from memory
         2 => {
@@ -739,7 +739,7 @@ pub fn cmp_address(s: &mut CpuState, address: u16, cycle: usize) -> BusMessage {
     }
 }
 
-pub fn beq_address(s: &mut CpuState, address: u16, cycle: usize) -> BusMessage {
+pub fn beq_address(s: &mut CpuState, address: u16, cycle: u8) -> BusMessage {
     match cycle {
         1 => {
             if s.regs.get_flag(CpuFlags::Z) { // zero flag set
@@ -762,7 +762,7 @@ pub fn beq_address(s: &mut CpuState, address: u16, cycle: usize) -> BusMessage {
     }
 }
 
-pub fn lda_address(s: &mut CpuState, address: u16, cycle: usize) -> BusMessage {
+pub fn lda_address(s: &mut CpuState, address: u16, cycle: u8) -> BusMessage {
     match cycle {
         1 => Read{addr: address},
         2 => {
@@ -775,7 +775,7 @@ pub fn lda_address(s: &mut CpuState, address: u16, cycle: usize) -> BusMessage {
     }
 }
 
-pub fn lsr_address(s: &mut CpuState, address: u16, cycle: usize) -> BusMessage {
+pub fn lsr_address(s: &mut CpuState, address: u16, cycle: u8) -> BusMessage {
     match cycle {
         1 => Read{addr: address}, // fetch value
         2 => {
@@ -796,7 +796,7 @@ pub fn lsr_address(s: &mut CpuState, address: u16, cycle: usize) -> BusMessage {
     }
 }
 
-pub fn adc_address(s: &mut CpuState, address: u16, cycle: usize) -> BusMessage {
+pub fn adc_address(s: &mut CpuState, address: u16, cycle: u8) -> BusMessage {
     match cycle {
         1 => BusMessage::Read{addr: address}, // fetch value
         2 => {
@@ -823,7 +823,7 @@ pub fn adc_address(s: &mut CpuState, address: u16, cycle: usize) -> BusMessage {
     }
 }
 
-pub fn bcs_address(s: &mut CpuState, address: u16, cycle: usize) -> BusMessage {
+pub fn bcs_address(s: &mut CpuState, address: u16, cycle: u8) -> BusMessage {
     match cycle {
         1 => {
             if s.regs.get_flag(CpuFlags::C) { // carry flag set
@@ -846,7 +846,7 @@ pub fn bcs_address(s: &mut CpuState, address: u16, cycle: usize) -> BusMessage {
     }
 }
 
-pub fn ror_implied(s: &mut CpuState, cycle: usize) -> BusMessage {
+pub fn ror_implied(s: &mut CpuState, cycle: u8) -> BusMessage {
     match cycle {
         1 => {
             // save status register
@@ -872,7 +872,7 @@ pub fn ror_implied(s: &mut CpuState, cycle: usize) -> BusMessage {
     }
 }
 
-pub fn cpx_address(s: &mut CpuState, address: u16, cycle: usize) -> BusMessage {
+pub fn cpx_address(s: &mut CpuState, address: u16, cycle: u8) -> BusMessage {
     match cycle {
         1 => Read{addr: address}, // fetch value M from memory
         2 => {
@@ -893,7 +893,7 @@ pub fn cpx_address(s: &mut CpuState, address: u16, cycle: usize) -> BusMessage {
     }
 }
 
-pub fn and_address(s: &mut CpuState, address: u16, cycle: usize) -> BusMessage {
+pub fn and_address(s: &mut CpuState, address: u16, cycle: u8) -> BusMessage {
     match cycle {
         1 => Read{addr: address}, // fetch value from address
         2 => {
@@ -911,7 +911,7 @@ pub fn and_address(s: &mut CpuState, address: u16, cycle: usize) -> BusMessage {
     }
 }
 
-pub fn eor_immediate(s: &mut CpuState, immediate: u8, _cycle: usize) -> BusMessage {
+pub fn eor_immediate(s: &mut CpuState, immediate: u8, _cycle: u8) -> BusMessage {
     s.regs.a ^= immediate;
 
     // zero flag
@@ -923,7 +923,7 @@ pub fn eor_immediate(s: &mut CpuState, immediate: u8, _cycle: usize) -> BusMessa
     Nop
 }
 
-pub fn pla_implied(s: &mut CpuState, cycle: usize) -> BusMessage {
+pub fn pla_implied(s: &mut CpuState, cycle: u8) -> BusMessage {
     match cycle {
         1 => {
             s.regs.sp = s.regs.sp.wrapping_add(1); // increment stack pointer
@@ -937,7 +937,7 @@ pub fn pla_implied(s: &mut CpuState, cycle: usize) -> BusMessage {
     }
 }
 
-pub fn ora_immediate(s: &mut CpuState, immediate: u8, _cycle: usize) -> BusMessage {
+pub fn ora_immediate(s: &mut CpuState, immediate: u8, _cycle: u8) -> BusMessage {
     s.regs.a |= immediate;
 
     // zero flag
@@ -949,7 +949,7 @@ pub fn ora_immediate(s: &mut CpuState, immediate: u8, _cycle: usize) -> BusMessa
     Nop
 }
 
-pub fn cmp_immediate(s: &mut CpuState, immediate: u8, cycle: usize) -> BusMessage {
+pub fn cmp_immediate(s: &mut CpuState, immediate: u8, cycle: u8) -> BusMessage {
     match cycle {
         1 => {
             let result = s.regs.a.wrapping_sub(immediate); // CMP performs A - M and sets flags
@@ -969,12 +969,12 @@ pub fn cmp_immediate(s: &mut CpuState, immediate: u8, cycle: usize) -> BusMessag
     }
 }
 
-pub fn clc_implied(s: &mut CpuState, cycle: usize) -> BusMessage {
+pub fn clc_implied(s: &mut CpuState, cycle: u8) -> BusMessage {
     s.regs.set_flag(CpuFlags::C, false);
     Nop
 }
 
-pub fn bpl_address(s: &mut CpuState, address: u16, cycle: usize) -> BusMessage {
+pub fn bpl_address(s: &mut CpuState, address: u16, cycle: u8) -> BusMessage {
     match cycle {
         1 => {
             if !s.regs.get_flag(CpuFlags::N) { // negative flag not set
@@ -997,7 +997,7 @@ pub fn bpl_address(s: &mut CpuState, address: u16, cycle: usize) -> BusMessage {
     }
 }
 
-pub fn bit_address(s: &mut CpuState, address: u16, cycle: usize) -> BusMessage {
+pub fn bit_address(s: &mut CpuState, address: u16, cycle: u8) -> BusMessage {
     match cycle {
         1 => Read{addr: address}, // fetch operand M
         2 => {
@@ -1018,12 +1018,12 @@ pub fn bit_address(s: &mut CpuState, address: u16, cycle: usize) -> BusMessage {
     }
 }
 
-pub fn txa_implied(s: &mut CpuState, cycle: usize) -> BusMessage {
+pub fn txa_implied(s: &mut CpuState, cycle: u8) -> BusMessage {
     s.regs.a = s.regs.x;
     Nop
 }
 
-pub fn bvc_address(s: &mut CpuState, address: u16, cycle: usize) -> BusMessage {
+pub fn bvc_address(s: &mut CpuState, address: u16, cycle: u8) -> BusMessage {
     match cycle {
         1 => {
             if !s.regs.get_flag(CpuFlags::V) { // overflow flag not set
@@ -1046,7 +1046,7 @@ pub fn bvc_address(s: &mut CpuState, address: u16, cycle: usize) -> BusMessage {
     }
 }
 
-pub fn bcc_address(s: &mut CpuState, address: u16, cycle: usize) -> BusMessage {
+pub fn bcc_address(s: &mut CpuState, address: u16, cycle: u8) -> BusMessage {
     match cycle {
         1 => {
             if !s.regs.get_flag(CpuFlags::C) { // carry flag not set
@@ -1069,7 +1069,7 @@ pub fn bcc_address(s: &mut CpuState, address: u16, cycle: usize) -> BusMessage {
     }
 }
 
-pub fn reset(s: &mut CpuState, reset_vector: u16, cycle: usize) -> BusMessage {
+pub fn reset(s: &mut CpuState, reset_vector: u16, cycle: u8) -> BusMessage {
     match cycle {
         x if x < 6 => Nop,
         6 => {
@@ -1101,7 +1101,7 @@ pub fn reset(s: &mut CpuState, reset_vector: u16, cycle: usize) -> BusMessage {
     }
 }
 
-pub fn interrupt(s: &mut CpuState, interrupt_vector: u16, cycle: usize) -> BusMessage {
+pub fn interrupt(s: &mut CpuState, interrupt_vector: u16, cycle: u8) -> BusMessage {
     match cycle {
         x if x < 3 => Nop,
         3 => Write{addr: 0x100 | s.regs.sp as u16, data: (s.regs.pc >> 8) as u8}, // push PC high byte to stack

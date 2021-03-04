@@ -5,8 +5,8 @@ use crate::cpu::{CpuState};
 use crate::BusMessage;
 
 pub struct Instruction {
-    pub cycles: usize,
-    pub bytes: usize,
+    pub cycles: u8,
+    pub bytes: u8,
     pub addr_delegate: AddrDelegate,
     pub op_delegate: OpDelegate,
     pub mnemonic: &'static str,
@@ -56,10 +56,10 @@ pub enum AddrDelegateReturn {
     Return(Operand),
 }
 
-pub type AddrDelegate = fn(&mut CpuState, usize) -> AddrDelegateReturn;
-pub type OpDelegateImplied = fn(&mut CpuState, usize) -> BusMessage;
-pub type OpDelegateImmediate = fn(&mut CpuState, u8, usize) -> BusMessage;
-pub type OpDelegateAddress = fn(&mut CpuState, u16, usize) -> BusMessage;
+pub type AddrDelegate = fn(&mut CpuState, u8) -> AddrDelegateReturn;
+pub type OpDelegateImplied = fn(&mut CpuState, u8) -> BusMessage;
+pub type OpDelegateImmediate = fn(&mut CpuState, u8, u8) -> BusMessage;
+pub type OpDelegateAddress = fn(&mut CpuState, u16, u8) -> BusMessage;
 
 pub static RESET_INSTRUCTION: Instruction = Instruction {
     cycles: 8,

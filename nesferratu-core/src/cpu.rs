@@ -81,9 +81,9 @@ impl CpuRegisters {
 }
 
 pub struct EmulationState {
-    total_cycles: usize,
-    op_cycle: usize,
-    additional_cycles: usize,
+    total_cycles: u64,
+    op_cycle: u8,
+    additional_cycles: u8,
     instruction_done: bool,
     interrupt_request: Interrupt,
 }
@@ -108,8 +108,8 @@ pub struct CpuInterpreter {
     emu_state: EmulationState,
 
     //  Interpreter State
-    addr_cycle: usize,
-    exec_cycle: usize,
+    addr_cycle: u8,
+    exec_cycle: u8,
     exec_state: CpuInterpreterState,
     instruction: Option<&'static Instruction>,
     operand: Option<Operand>,
