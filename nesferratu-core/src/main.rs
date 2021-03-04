@@ -1,11 +1,13 @@
 extern crate clap;
 use clap::{Arg, App};
 
-use nesferratu_core::{Bus};
+use nesferratu_core::Bus;
+use nesferratu_core::cartridge::Cartridge;
 
 use std::io;
+use std::io::Result as IoResult;
 
-fn main() {
+fn main() -> IoResult<()> {
 
     let matches = App::new("NESferratu CLI")
         .version("0.1-turboalpha")
@@ -22,14 +24,20 @@ fn main() {
     
         println!("{:?}", matches);
 
-    let mut bus = Bus::new();
-    loop {
-        bus.clock();
-        
-        if matches.is_present("step") {
+    let cartridge = Cartridge::read_from_file(matches.value_of("ROM").unwrap())?;
+    let mut bus = Bus::new(cartridge);
+    
+    if matches.is_present("debug") {
+        loop {
+            bus.clock();
             let mut input = String::new();
             io::stdin().read_line(&mut input);
+            println!();
         }
-        println!();
+    } else {
+        loop {
+            bus.clock();
+            println!();
+        }
     }
 }

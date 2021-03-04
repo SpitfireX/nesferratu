@@ -1,6 +1,7 @@
 extern crate num_derive;
 
 use cpu::{CPU, CPUInterpreter};
+use cartridge::Cartridge;
 
 pub mod cpu;
 pub mod cartridge;
@@ -15,16 +16,18 @@ pub enum BusMessage {
 pub struct Bus {
     fetch: Option<u8>,
     cpu: CPUInterpreter,
-    memory: Memory,
+    memory: Ram,
+    cartridge: Cartridge,
 }
 
 impl Bus {
 
-    pub fn new() -> Bus {
+    pub fn new(cartridge: Cartridge) -> Bus {
         let mut temp = Bus {
             fetch: None,
             cpu: CPUInterpreter::new(),
-            memory: Memory::new(),
+            memory: Ram::new(),
+            cartridge,
         };
         temp.cpu.reset();
         temp
@@ -39,19 +42,19 @@ impl Bus {
 
         match msg {
             BusMessage::Read { addr } => {
-                self.fetch = self.read(addr);
+                self.fetch = self.read_cpu(addr);
             }
             BusMessage::Write { addr, data } => {
                 self.fetch = None;
-                self.write(addr, data);
+                self.write_cpu(addr, data);
             }
             BusMessage::Nop => {
                 self.fetch = None;
             }
         }
 
-        println!("Program:");
-        self.memory.prettyprint(0x1337, 0x50);
+        // println!("Program:");
+        // self.memory.prettyprint(0x1337, 0x50);
 
         println!("Zero Page:");
         self.memory.prettyprint(0x0000, 0x100);
@@ -60,12 +63,55 @@ impl Bus {
         self.memory.prettyprint(0x01E0, 0x20);
     }
 
-    fn read(&self, addr: u16) -> Option<u8> {
-        Some(self.memory.read(addr))
+    fn read_cpu(&self, addr: u16) -> Option<u8> {
+        match addr {
+            // $0000-$1FFF RAM, 2KB mirrored 4 times
+            addr if addr < 0x2000 => {
+                Some(self.memory.read(addr % 0x800))
+            }
+            // $2000-$3FFF PPU registers, 8 byte mirrored several times
+            addr if addr < 0x4000 => {
+                // panic!("PPU not implemented yet");
+                Some(0)
+            }
+            // $4000-$4017 APU / IO
+            addr if addr < 0x4018 => {
+                panic!("APU and IO not implemented yet");
+            }
+            // $4018-$401F CPU Test Mode stuff
+            addr if addr < 0x4020 => {
+                panic!("CPU Test Mode stuff not implemented yet");
+            }
+            // $4020-$FFFF Cartridge
+            _ => {
+                Some(self.cartridge.read(addr))
+            }
+        }
     }
 
-    fn write(&mut self, addr: u16, data: u8) {
-        self.memory.write(addr, data);
+    fn write_cpu(&mut self, addr: u16, data: u8) {
+        match addr {
+            // $0000-$1FFF RAM, 2KB mirrored 4 times
+            addr if addr < 0x2000 => {
+                self.memory.write(addr % 0x800, data);
+            }
+            // $2000-$3FFF PPU registers, 8 byte mirrored several times
+            addr if addr < 0x4000 => {
+                panic!("PPU not implemented yet");
+            }
+            // $4000-$4017 APU / IO
+            addr if addr < 0x4018 => {
+                panic!("APU and IO not implemented yet");
+            }
+            // $4018-$401F CPU Test Mode stuff
+            addr if addr < 0x4020 => {
+                panic!("CPU Test Mode stuff not implemented yet");
+            }
+            // $4020-$FFFF Cartridge
+            _ => {
+                self.cartridge.write(addr, data);
+            }
+        }
     }
 }
 
@@ -75,199 +121,19 @@ trait BusDevice {
     fn write(&mut self, addr: u16, data: u8);
 }
 
-struct Memory {
-    ram: [u8; 64*1024]
+struct Ram {
+    ram: [u8; 2048]
 }
 
-impl Memory {
-    fn new() -> Memory {
-        let mut new = Memory{
-            ram: [0x00; 64*1024]
-        };
-        let entrypoint: u16 = 0x1337;
-        // let program = [
-        //     0xA9u8, // LDA imm
-        //     b'h',
-        //     0x85, // STA zp
-        //     0x00,
-        //     0xA9, // LDA imm
-        //     b'e',
-        //     0x85, // STA zp
-        //     0x01,
-        //     0xA9, // LDA imm
-        //     b'l',
-        //     0x85, // STA zp
-        //     0x02,
-        //     0xA9, // LDA imm
-        //     b'l',
-        //     0x85, // STA zp
-        //     0x03,
-        //     0xA9, // LDA imm
-        //     b'o',
-        //     0x85, // STA zp
-        //     0x04,
-        //     0xA9, // LDA imm
-        //     b' ',
-        //     0x85, // STA zp
-        //     0x05,
-        //     0xA9, // LDA imm
-        //     b'w',
-        //     0x85, // STA zp
-        //     0x06,
-        //     0xA9, // LDA imm
-        //     b'o',
-        //     0x85, // STA zp
-        //     0x07,
-        //     0xA9, // LDA imm
-        //     b'r',
-        //     0x85, // STA zp
-        //     0x08,
-        //     0xA9, // LDA imm
-        //     b'l',
-        //     0x85, // STA zp
-        //     0x09,
-        //     0xA9, // LDA imm
-        //     b'd',
-        //     0x85, // STA zp
-        //     0x0A,
-        //     0x6C, // JMP ind
-        //     0xFC, // reset vector addr
-        //     0xFF,
-        // ];
-
-        // let program = [
-        //     0xA9u8, // LDA imm
-        //     0x69,
-        //     0x85,   // STA zp
-        //     0x69,
-        //     0xC6,   // DEC zp
-        //     0x69,
-        //     0xC6,   // DEC zp
-        //     0x69,
-        // ];
-
-        // let program = [
-        //     0xA9u8, // LDA imm
-        //     0x69,
-        //     0x6E,   // ROR abs
-        //     0x77,
-        //     0x13,
-        //     0x6E,   // ROR abs
-        //     0x77,
-        //     0x13,
-        // ];
-
-        // let program = [
-        //     0x38u8, // SEC
-        //     0x18,   // CLC
-        //     0x38,   // SEC
-        //     0x18,   // CLC
-        // ];
-
-        // let program = [
-        //     0xA9u8, // LDA imm
-        //     0x69,
-        //     0xCD,   // CMP abs
-        //     0x77,
-        //     0x17,
-        // ];
-
-        // let program = [
-        //     0xA9u8, // LDA imm
-        //     0x69,
-        //     0x48,   // PHA
-        //     0xA9,   // LDA imm
-        //     0x96,
-        //     0x48,
-        //     0xA9,   // LDA imm
-        //     0x00,
-        //     0x68,   // PLA
-        //     0x68,   // PLA
-        // ];
-
-        // let program = [
-        //     0x20u8, // JSR
-        //     0x47,
-        //     0x13,
-        //     0xA9,   // LDA imm
-        //     0x69,
-        //     0x00,
-        //     0x00,
-        //     0x00,
-        //     0x00,
-        //     0x00,
-        //     0x00,
-        //     0x00,
-        //     0x00,
-        //     0x00,
-        //     0x00,
-        //     0x00,
-        //     0x60
-        // ];
-
-        // let program = [
-        //     0x58u8, // CLI
-        //     0x69,   // ADC imm
-        //     0x01,
-        //     0x4C,   // JMP abs
-        //     0x37,
-        //     0x13,
-        //     0x00,
-        //     0x00,
-        //     0x00,
-        //     0x00,
-        //     0x00,
-        //     0x00,
-        //     0x00,
-        //     0x00,
-        //     0x00,
-        //     0x00,
-        //     0xA2,   // LDX imm
-        //     0x69,
-        //     0x40    // RTI
-        // ];
-
-        let program = [
-            0xA9u8, // LDA imm
-            0xFF,
-            0x30,   // BMI
-            -100i8 as u8,
-            0x00,
-            0x00,
-            0x00,
-            0x00,
-            0x00,
-            0x00,
-            0x00,
-            0x00,
-            0x00,
-            0x00,
-            0x00,
-            0x00,
-            0xA2,   // LDX imm
-            0x69,
-        ];
-
-        // cheeky debug value
-        new.write(0x1377, 0x01);
-        
-        // set reset vector
-        new.write(0xFFFC, entrypoint as u8);
-        new.write(0xFFFD, (entrypoint >> 8) as u8);
-
-        //set IRQ/BRK vector
-        new.write(0xFFFE, 0x47);
-        new.write(0xFFFF, 0x13);
-
-        // tranfer program to the entry point
-        let i = entrypoint as usize;
-        new.ram[i .. i + program.len()].clone_from_slice(&program);
-
-        new
+impl Ram {
+    fn new() -> Ram {
+        Ram{
+            ram: [0x00; 2048]
+        }
     }
 }
 
-impl Memory {
+impl Ram {
     fn prettyprint(&self, addr: u16, len: usize) {
         let len = if len > self.ram.len() - addr as usize {
             self.ram.len() - addr as usize
@@ -317,7 +183,7 @@ impl Memory {
     }
 }
 
-impl BusDevice for Memory {
+impl BusDevice for Ram {
 
     fn read(&self, addr: u16) -> u8 {
         self.ram[addr as usize]

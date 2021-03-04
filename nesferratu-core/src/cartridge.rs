@@ -1,8 +1,14 @@
-use std::{borrow::Borrow, io::{Result as IoResult, Read, Error, ErrorKind}, path::Path};
+pub mod mappers;
+
+use mappers::{Mapper, MappedAddress};
+
+use std::{io::{Result as IoResult, Read, Error, ErrorKind}, path::Path};
 use std::fs::File;
 
+use crate::BusDevice;
+
 // iNES / NES2.0 header
-struct Header {
+pub struct Header {
     is_nes20: bool,
     prg_rom_size: usize,
     chr_rom_size: usize,
@@ -13,8 +19,9 @@ struct Header {
     chr_ram_size: usize,
 }
 
-struct Cartridge {
+pub struct Cartridge {
     header: Header,
+    mapper: Box<dyn Mapper>,
     trainer: Option<Box<[u8]>>,
     prg_rom: Box<[u8]>,
     chr_rom: Box<[u8]>,
@@ -111,6 +118,9 @@ impl Cartridge {
             }
         };
 
+        // get mapper instance
+        let mapper = mappers::map_mapper(header.mapper_id).expect("Unimplemented Mapper");
+
         // read trainer, if present
         let trainer: Option<Box<[u8]>> = if header.trainer_present {
             let mut data = [0u8; 512];
@@ -131,10 +141,10 @@ impl Cartridge {
         let mut misc_rom = Vec::new();
         reader.read_to_end(&mut misc_rom)?;
 
-
         Ok(
             Cartridge {
                 header,
+                mapper,
                 trainer,
                 prg_rom: prg_rom.into_boxed_slice(),
                 chr_rom: chr_rom.into_boxed_slice(),
@@ -142,4 +152,42 @@ impl Cartridge {
             }
         )
     } 
+}
+
+impl BusDevice for Cartridge {
+    fn read(&self, addr: u16) -> u8 {
+        match self.mapper.map_cpu(&self.header, addr) {
+            MappedAddress::ChrRam(_) => {
+                panic!("The fuck is a cartridge RAM?");
+            }
+            MappedAddress::ChrRom(_) => {
+                panic!("This should not be happening aaAAaaaaAA spaghet");
+            }
+            MappedAddress::PrgRam(_) => {
+                panic!("The fuck is a cartridge RAM?");
+            }
+            MappedAddress::PrgRom(addr) => {
+                self.prg_rom[addr as usize]
+            }
+            MappedAddress::None => 0x00,
+        }
+    }
+
+    fn write(&mut self, addr: u16, data: u8) {
+        match self.mapper.map_cpu(&self.header, addr) {
+            MappedAddress::ChrRam(_) => {
+                panic!("The fuck is a cartridge RAM?");
+            }
+            MappedAddress::ChrRom(_) => {
+                panic!("This should not be happening aaAAaaaaAA spaghet");
+            }
+            MappedAddress::PrgRam(_) => {
+                panic!("The fuck is a cartridge RAM?");
+            }
+            MappedAddress::PrgRom(addr) => {
+                self.prg_rom[addr as usize] = data;
+            }
+            MappedAddress::None => {},
+        }
+    }
 }
