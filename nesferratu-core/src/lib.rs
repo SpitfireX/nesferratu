@@ -34,10 +34,6 @@ impl Bus {
     }
 
     pub fn clock(&mut self) {
-        if self.cpu.total_cycles == 20 {
-            self.cpu.irq();
-        }
-
         let msg = self.cpu.clock(self.fetch);
 
         match msg {
