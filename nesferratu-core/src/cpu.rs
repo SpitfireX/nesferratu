@@ -80,21 +80,39 @@ impl CpuRegisters {
     }
 }
 
+pub struct EmulationState {
+    total_cycles: usize,
+    op_cycle: usize,
+    additional_cycles: usize,
+    instruction_done: bool,
+    interrupt_request: Interrupt,
+}
+
+impl Default for EmulationState {
+    fn default() -> Self {
+        Self {
+            total_cycles: 0,
+            op_cycle: 0,
+            additional_cycles: 0,
+            instruction_done: true,
+            interrupt_request: Interrupt::None,
+        }
+    }
+}
+
 pub struct CpuInterpreter {
     // CPU state
     cpu_state: CpuState,
 
-    // helper variables
-    pub total_cycles: usize,
-    op_cycle: usize,
+    // (public) Emulation State
+    emu_state: EmulationState,
+
+    //  Interpreter State
     addr_cycle: usize,
     exec_cycle: usize,
     exec_state: CpuInterpreterState,
     instruction: Option<&'static Instruction>,
     operand: Option<Operand>,
-    additional_cycles: usize,
-    interrupt_request: Interrupt,
-    instruction_done: bool,
 }
 
 impl CpuInterpreter {
@@ -102,21 +120,18 @@ impl CpuInterpreter {
         CpuInterpreter {
             cpu_state: CpuState::default(),
 
-            total_cycles: 0,
-            op_cycle: 0,
+            emu_state: EmulationState::default(),
+
             addr_cycle: 0,
             exec_cycle: 0,
             exec_state: CpuInterpreterState::Halt,
             instruction: None,
             operand: None,
-            additional_cycles: 0,
-            interrupt_request: Interrupt::None,
-            instruction_done: true,
         }
     }
 
     fn print_debug(&self) {
-        println!("cycle: {}, op_cycle: {}, state: {:?}", self.total_cycles, self.op_cycle, self.exec_state);
+        println!("cycle: {}, op_cycle: {}, state: {:?}", self.emu_state.total_cycles, self.emu_state.op_cycle, self.exec_state);
         if let Some(i) = self.instruction.as_ref() {
             println!("op: {}, addr: {}, bytes: {}, cycles: {}", i.mnemonic, i.addressing, i.bytes, i.cycles);
         }
@@ -133,9 +148,9 @@ impl CPU for CpuInterpreter {
         use CpuInterpreterState::*;
         use BusMessage::*;
 
-        self.instruction_done = false;
-        self.total_cycles += 1;
-        self.op_cycle += 1;
+        self.emu_state.instruction_done = false;
+        self.emu_state.total_cycles += 1;
+        self.emu_state.op_cycle += 1;
         self.print_debug();
 
         if let Some(data) = data {
@@ -145,7 +160,7 @@ impl CPU for CpuInterpreter {
 
         // increase the cycle lenght of the current instruction if the current instruction requires it
         if self.cpu_state.extra_cycle {
-            self.additional_cycles += 1;
+            self.emu_state.additional_cycles += 1;
             self.cpu_state.extra_cycle = false;
         }
 
@@ -154,7 +169,7 @@ impl CPU for CpuInterpreter {
         loop {
             match self.exec_state {
                 CpuInterpreterState::Fetch => {
-                    match self.op_cycle {
+                    match self.emu_state.op_cycle {
                         1 => {
                             self.cpu_state.op = data.expect("Bus data can't be empty in fetch cycle 1");
                             self.instruction = Some(
@@ -175,7 +190,7 @@ impl CPU for CpuInterpreter {
                         _ => panic!("Fetch state can't take longer than 3 cycles"),
                     }
 
-                    if self.op_cycle < self.instruction.expect("CPU::instruction cant be None after decoding").bytes {
+                    if self.emu_state.op_cycle < self.instruction.expect("CPU::instruction cant be None after decoding").bytes {
                         return Read{addr: self.cpu_state.regs.pc};
                     } else {
                         self.exec_state = Addressing;
@@ -220,18 +235,18 @@ impl CPU for CpuInterpreter {
                         }
                     };
 
-                    if self.op_cycle < instruction.cycles + self.additional_cycles || self.cpu_state.extra_cycle {
+                    if self.emu_state.op_cycle < instruction.cycles + self.emu_state.additional_cycles || self.cpu_state.extra_cycle {
                         return msg;
                     } else {
                         // We're done with this instruction, prepare the next one!
-                        self.op_cycle = 0;
+                        self.emu_state.op_cycle = 0;
                         self.addr_cycle = 0;
                         self.exec_cycle = 0;
-                        self.additional_cycles = 0;
-                        self.instruction_done = true;
+                        self.emu_state.additional_cycles = 0;
+                        self.emu_state.instruction_done = true;
 
                         // read next instruction or handle interrupt request
-                        match self.interrupt_request {
+                        match self.emu_state.interrupt_request {
                             Interrupt::None => {
                                 self.instruction = None;
                                 self.operand = None;
@@ -241,13 +256,13 @@ impl CPU for CpuInterpreter {
                                 self.instruction = Some(&instructions::IRQ_INSTRUCTION);
                                 self.operand = Some(Operand::Address(interrupt_vector));
                                 self.exec_state = Execute;
-                                self.interrupt_request = Interrupt::None;
+                                self.emu_state.interrupt_request = Interrupt::None;
                             }
                             Interrupt::Nmi(interrupt_vector) => {
                                 self.instruction = Some(&instructions::NMI_INSTRUCTION);
                                 self.operand = Some(Operand::Address(interrupt_vector));
                                 self.exec_state = Execute;
-                                self.interrupt_request = Interrupt::None;
+                                self.emu_state.interrupt_request = Interrupt::None;
                             }
                         }
 
@@ -263,21 +278,20 @@ impl CPU for CpuInterpreter {
     }
 
     fn irq(&mut self) {
-        if !self.cpu_state.regs.get_flag(CpuFlags::I) && self.interrupt_request == Interrupt::None {
-            self.interrupt_request = Interrupt::Irq(0xFFFE);
+        if !self.cpu_state.regs.get_flag(CpuFlags::I) && self.emu_state.interrupt_request == Interrupt::None {
+            self.emu_state.interrupt_request = Interrupt::Irq(0xFFFE);
         }
     }
 
     fn nmi(&mut self) {
-        self.interrupt_request = Interrupt::Nmi(0xFFFA);
+        self.emu_state.interrupt_request = Interrupt::Nmi(0xFFFA);
     }
 
     fn reset(&mut self) {
         println!("CPU reset");
 
         // zero internal interpreter state
-        self.total_cycles = 0;
-        self.op_cycle = 0;
+        self.emu_state = EmulationState::default();
         self.addr_cycle = 0;
         self.exec_cycle = 0;
 
@@ -290,7 +304,5 @@ impl CPU for CpuInterpreter {
         self.exec_state = CpuInterpreterState::Execute;
         self.operand = Some(Operand::Address(0xFFFC));
         self.instruction = Some(&instructions::RESET_INSTRUCTION);
-        self.additional_cycles = 0;
-        self.instruction_done = true;
     }
 }
