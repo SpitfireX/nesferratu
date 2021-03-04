@@ -1,7 +1,7 @@
 pub mod addressing;
 pub mod ops;
 
-use crate::cpu::{CPURegisters};
+use crate::cpu::{CpuState};
 use crate::BusMessage;
 
 pub struct Instruction {
@@ -56,10 +56,10 @@ pub enum AddrDelegateReturn {
     Return(Operand),
 }
 
-pub type AddrDelegate = fn(&mut CPURegisters, usize) -> AddrDelegateReturn;
-pub type OpDelegateImplied = fn(&mut CPURegisters, usize) -> BusMessage;
-pub type OpDelegateImmediate = fn(&mut CPURegisters, u8, usize) -> BusMessage;
-pub type OpDelegateAddress = fn(&mut CPURegisters, u16, usize) -> BusMessage;
+pub type AddrDelegate = fn(&mut CpuState, usize) -> AddrDelegateReturn;
+pub type OpDelegateImplied = fn(&mut CpuState, usize) -> BusMessage;
+pub type OpDelegateImmediate = fn(&mut CpuState, u8, usize) -> BusMessage;
+pub type OpDelegateAddress = fn(&mut CpuState, u16, usize) -> BusMessage;
 
 pub static RESET_INSTRUCTION: Instruction = Instruction {
     cycles: 8,

@@ -2,7 +2,7 @@
 pub mod instructions;
 
 use num_traits::FromPrimitive;
-use instructions::{AddrDelegateReturn, Instruction, Opcode, Operand, RESET_INSTRUCTION};
+use instructions::{AddrDelegateReturn, Instruction, Opcode, Operand};
 use crate::BusMessage;
 
 pub trait CPU {
@@ -16,7 +16,7 @@ pub trait CPU {
 }
 
 #[repr(u8)]
-enum CPUFlags {
+enum CpuFlags {
     C = (1 << 0),   // Carry Bit
     Z = (1 << 1),   // Zero
     I = (1 << 2),   // Disable Interrupts
@@ -28,7 +28,7 @@ enum CPUFlags {
 }
 
 #[derive(Debug)]
-enum CPUState {
+enum CpuInterpreterState {
     Fetch,
     Addressing,
     Execute,
@@ -43,14 +43,10 @@ enum Interrupt {
 }
 
 #[derive(Default, Debug)]
-pub struct CPURegisters {
-    a: u8,      // Accumulator
-    x: u8,      // X Register
-    y: u8,      // Y Register
-    sp: u8,     // Stack Pointer
-    pc: u16,    // Program Counter
-    status: u8, // Status Register
-    
+pub struct CpuState {
+    // CPU registers
+    regs: CpuRegisters,
+
     // emulation helpers
     op: u8,             // 1st byte of instruction
     o1: u8,             // 2nd byte of instruction
@@ -60,12 +56,22 @@ pub struct CPURegisters {
     extra_cycle: bool   // flag to add one cycle to the instructions cycle length during the next cycle
 }
 
-impl CPURegisters {
-    fn get_flag(&self, flag: CPUFlags) -> bool {
+#[derive(Default, Debug)]
+pub struct CpuRegisters {
+    a: u8,      // Accumulator
+    x: u8,      // X Register
+    y: u8,      // Y Register
+    sp: u8,     // Stack Pointer
+    pc: u16,    // Program Counter
+    status: u8, // Status Register
+}
+
+impl CpuRegisters {
+    fn get_flag(&self, flag: CpuFlags) -> bool {
         (self.status & (flag as u8)) > 0
     }
 
-    fn set_flag(&mut self, flag: CPUFlags, value: bool) {
+    fn set_flag(&mut self, flag: CpuFlags, value: bool) {
         if value {
             self.status |= flag as u8;
         } else {
@@ -74,122 +80,125 @@ impl CPURegisters {
     }
 }
 
-pub struct CPUInterpreter {
+pub struct CpuInterpreter {
     // CPU state
-    registers: CPURegisters,
+    cpu_state: CpuState,
 
     // helper variables
     pub total_cycles: usize,
     op_cycle: usize,
     addr_cycle: usize,
     exec_cycle: usize,
-    state: CPUState,
+    exec_state: CpuInterpreterState,
     instruction: Option<&'static Instruction>,
     operand: Option<Operand>,
     additional_cycles: usize,
     interrupt_request: Interrupt,
+    instruction_done: bool,
 }
 
-impl CPUInterpreter {
-    pub fn new() -> CPUInterpreter {
-        CPUInterpreter {
-            registers: CPURegisters::default(),
+impl CpuInterpreter {
+    pub fn new() -> CpuInterpreter {
+        CpuInterpreter {
+            cpu_state: CpuState::default(),
 
             total_cycles: 0,
             op_cycle: 0,
             addr_cycle: 0,
             exec_cycle: 0,
-            state: CPUState::Halt,
+            exec_state: CpuInterpreterState::Halt,
             instruction: None,
             operand: None,
             additional_cycles: 0,
             interrupt_request: Interrupt::None,
+            instruction_done: true,
         }
     }
 
     fn print_debug(&self) {
-        println!("cycle: {}, op_cycle: {}, state: {:?}", self.total_cycles, self.op_cycle, self.state);
+        println!("cycle: {}, op_cycle: {}, state: {:?}", self.total_cycles, self.op_cycle, self.exec_state);
         if let Some(i) = self.instruction.as_ref() {
             println!("op: {}, addr: {}, bytes: {}, cycles: {}", i.mnemonic, i.addressing, i.bytes, i.cycles);
         }
-        println!("{:02X?}", self.registers);
+        println!("{:02X?}", self.cpu_state);
         println!("Flags: NV-BDIZC");
-        println!("       {:08b}", self.registers.status);
+        println!("       {:08b}", self.cpu_state.regs.status);
     }
 }
 
-impl CPU for CPUInterpreter {
+impl CPU for CpuInterpreter {
 
     fn clock(&mut self, data: Option<u8>) -> BusMessage {
 
-        use CPUState::*;
+        use CpuInterpreterState::*;
         use BusMessage::*;
 
+        self.instruction_done = false;
         self.total_cycles += 1;
         self.op_cycle += 1;
         self.print_debug();
 
         if let Some(data) = data {
             println!("\tbus data 0x{:02X}", data);
-            self.registers.data = data;
+            self.cpu_state.data = data;
         }
 
         // increase the cycle lenght of the current instruction if the current instruction requires it
-        if self.registers.extra_cycle {
+        if self.cpu_state.extra_cycle {
             self.additional_cycles += 1;
-            self.registers.extra_cycle = false;
+            self.cpu_state.extra_cycle = false;
         }
 
         // CPU state machine
 
         loop {
-            match self.state {
-                CPUState::Fetch => {
+            match self.exec_state {
+                CpuInterpreterState::Fetch => {
                     match self.op_cycle {
                         1 => {
-                            self.registers.op = data.expect("Bus data can't be empty in fetch cycle 1");
+                            self.cpu_state.op = data.expect("Bus data can't be empty in fetch cycle 1");
                             self.instruction = Some(
-                                Opcode::from_u8(self.registers.op)
+                                Opcode::from_u8(self.cpu_state.op)
                                     .expect("Illegal Opcode")
                                     .to_instruction()
                             );
-                            self.registers.pc += 1;
+                            self.cpu_state.regs.pc += 1;
                         },
                         2 => {
-                            self.registers.o1 = data.expect("Bus data can't be empty in fetch cycle 2");
-                            self.registers.pc += 1;
+                            self.cpu_state.o1 = data.expect("Bus data can't be empty in fetch cycle 2");
+                            self.cpu_state.regs.pc += 1;
                         },
                         3 => {
-                            self.registers.o2 = data.expect("Bus data can't be empty in fetch cycle 3");
-                            self.registers.pc += 1;
+                            self.cpu_state.o2 = data.expect("Bus data can't be empty in fetch cycle 3");
+                            self.cpu_state.regs.pc += 1;
                         },
                         _ => panic!("Fetch state can't take longer than 3 cycles"),
                     }
 
                     if self.op_cycle < self.instruction.expect("CPU::instruction cant be None after decoding").bytes {
-                        return Read{addr: self.registers.pc};
+                        return Read{addr: self.cpu_state.regs.pc};
                     } else {
-                        self.state = Addressing;
+                        self.exec_state = Addressing;
                     }
                 }
-                CPUState::Addressing => {
+                CpuInterpreterState::Addressing => {
                     self.addr_cycle += 1;
 
                     let instruction = self.instruction
                                         .expect("CPU::instruction is None, this should be impossible at this point");
 
-                    match (instruction.addr_delegate)(&mut self.registers, self.addr_cycle) {
+                    match (instruction.addr_delegate)(&mut self.cpu_state, self.addr_cycle) {
                         AddrDelegateReturn::Yield(msg) => {
                             return msg;
                         }
                         AddrDelegateReturn::Return(operand) => {
                             self.operand = Some(operand);
-                            self.state = Execute;
+                            self.exec_state = Execute;
                             continue;
                         }
                     }
                 }
-                CPUState::Execute => {
+                CpuInterpreterState::Execute => {
                     self.exec_cycle += 1;
                     
                     let instruction = self.instruction
@@ -201,17 +210,17 @@ impl CPU for CPUInterpreter {
                     
                     let msg: BusMessage = match operand {
                         Operand::Implied => {
-                            instruction.op_delegate.implied().unwrap()(&mut self.registers, self.exec_cycle)
+                            instruction.op_delegate.implied().unwrap()(&mut self.cpu_state, self.exec_cycle)
                         }
                         Operand::Immediate(imm) => {
-                            instruction.op_delegate.immediate().unwrap()(&mut self.registers, *imm, self.exec_cycle)
+                            instruction.op_delegate.immediate().unwrap()(&mut self.cpu_state, *imm, self.exec_cycle)
                         }
                         Operand::Address(addr) => {
-                            instruction.op_delegate.address().unwrap()(&mut self.registers, *addr, self.exec_cycle)
+                            instruction.op_delegate.address().unwrap()(&mut self.cpu_state, *addr, self.exec_cycle)
                         }
                     };
 
-                    if self.op_cycle < instruction.cycles + self.additional_cycles || self.registers.extra_cycle {
+                    if self.op_cycle < instruction.cycles + self.additional_cycles || self.cpu_state.extra_cycle {
                         return msg;
                     } else {
                         // We're done with this instruction, prepare the next one!
@@ -219,32 +228,33 @@ impl CPU for CPUInterpreter {
                         self.addr_cycle = 0;
                         self.exec_cycle = 0;
                         self.additional_cycles = 0;
+                        self.instruction_done = true;
 
                         // read next instruction or handle interrupt request
                         match self.interrupt_request {
                             Interrupt::None => {
                                 self.instruction = None;
                                 self.operand = None;
-                                self.state = Fetch;
+                                self.exec_state = Fetch;
                             }
                             Interrupt::Irq(interrupt_vector) => {
                                 self.instruction = Some(&instructions::IRQ_INSTRUCTION);
                                 self.operand = Some(Operand::Address(interrupt_vector));
-                                self.state = Execute;
+                                self.exec_state = Execute;
                                 self.interrupt_request = Interrupt::None;
                             }
                             Interrupt::Nmi(interrupt_vector) => {
                                 self.instruction = Some(&instructions::NMI_INSTRUCTION);
                                 self.operand = Some(Operand::Address(interrupt_vector));
-                                self.state = Execute;
+                                self.exec_state = Execute;
                                 self.interrupt_request = Interrupt::None;
                             }
                         }
 
-                        return Read{addr: self.registers.pc};
+                        return Read{addr: self.cpu_state.regs.pc};
                     }
                 }
-                CPUState::Halt => {
+                CpuInterpreterState::Halt => {
                     println!("CPU is halted");
                     return Nop;
                 }
@@ -253,7 +263,7 @@ impl CPU for CPUInterpreter {
     }
 
     fn irq(&mut self) {
-        if !self.registers.get_flag(CPUFlags::I) && self.interrupt_request == Interrupt::None {
+        if !self.cpu_state.regs.get_flag(CpuFlags::I) && self.interrupt_request == Interrupt::None {
             self.interrupt_request = Interrupt::Irq(0xFFFE);
         }
     }
@@ -272,14 +282,15 @@ impl CPU for CPUInterpreter {
         self.exec_cycle = 0;
 
         // bit 3 of status always high
-        self.registers.status = 0x20;
+        self.cpu_state.regs.status = 0x20;
         // set IRQ disable flag
-        self.registers.set_flag(CPUFlags::I, true);
+        self.cpu_state.regs.set_flag(CpuFlags::I, true);
 
         // dispatch reset pseudo-instruction with the reset vector address as operand
-        self.state = CPUState::Execute;
+        self.exec_state = CpuInterpreterState::Execute;
         self.operand = Some(Operand::Address(0xFFFC));
         self.instruction = Some(&instructions::RESET_INSTRUCTION);
         self.additional_cycles = 0;
+        self.instruction_done = true;
     }
 }

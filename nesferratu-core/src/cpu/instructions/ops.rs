@@ -1,66 +1,66 @@
-use crate::cpu::{CPURegisters, CPUFlags};
+use crate::cpu::{CpuState, CpuFlags};
 use crate::BusMessage;
 use crate::BusMessage::*;
 
-pub fn txs_implied(regs: &mut CPURegisters, cycle: usize) -> BusMessage {
-    regs.sp = regs.x;
+pub fn txs_implied(s: &mut CpuState, cycle: usize) -> BusMessage {
+    s.regs.sp = s.regs.x;
     Nop
 }
 
-pub fn cld_implied(regs: &mut CPURegisters, cycle: usize) -> BusMessage {
-    regs.set_flag(CPUFlags::D, false);
+pub fn cld_implied(s: &mut CpuState, cycle: usize) -> BusMessage {
+    s.regs.set_flag(CpuFlags::D, false);
     Nop
 }
 
-pub fn asl_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMessage {
+pub fn asl_address(s: &mut CpuState, address: u16, cycle: usize) -> BusMessage {
     match cycle {
         1 => Read{addr: address}, // fetch value
         2 => {
             // carry flag contains old LSB
-            regs.set_flag(CPUFlags::C, regs.data & 0x80 == 0x80); // work with fetched value
+            s.regs.set_flag(CpuFlags::C, s.data & 0x80 == 0x80); // work with fetched value
 
-            regs.data <<= 1;
+            s.data <<= 1;
         
             // zero flag
-            regs.set_flag(CPUFlags::Z, regs.data == 0);
+            s.regs.set_flag(CpuFlags::Z, s.data == 0);
         
             // negative flag
-            regs.set_flag(CPUFlags::Z, regs.data & 0x80 == 0x80);
+            s.regs.set_flag(CpuFlags::Z, s.data & 0x80 == 0x80);
         
-            Write{addr: address, data: regs.data} // write back changed value
+            Write{addr: address, data: s.data} // write back changed value
         }
         _ => Nop
     }
 }
 
-pub fn tay_implied(regs: &mut CPURegisters, cycle: usize) -> BusMessage {
-    regs.y = regs.a;
+pub fn tay_implied(s: &mut CpuState, cycle: usize) -> BusMessage {
+    s.regs.y = s.regs.a;
     Nop
 }
 
-pub fn sbc_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMessage {
+pub fn sbc_address(s: &mut CpuState, address: u16, cycle: usize) -> BusMessage {
     match cycle {
         1 => BusMessage::Read{addr: address}, // fetch value
         2 => {
             // invert operand
-            let immediate = regs.data ^ 0xFF;
+            let immediate = s.data ^ 0xFF;
 
-            let result: usize = (regs.a as usize)
+            let result: usize = (s.regs.a as usize)
                                     .wrapping_add(immediate as usize)
-                                    .wrapping_add(regs.get_flag(CPUFlags::C) as usize);
+                                    .wrapping_add(s.regs.get_flag(CpuFlags::C) as usize);
 
             // carry flag
-            regs.set_flag(CPUFlags::C, result > 255);
+            s.regs.set_flag(CpuFlags::C, result > 255);
         
             // zero flag
-            regs.set_flag(CPUFlags::Z, (result & 0xFF) == 0);
+            s.regs.set_flag(CpuFlags::Z, (result & 0xFF) == 0);
         
             // signed overflow flag, V = (A^result) & (M^result) & 0x80
             // see http://www.righto.com/2012/12/the-6502-overflow-flag-explained.html
-            regs.set_flag(CPUFlags::V, (regs.a as usize ^ result) & (immediate as usize ^ result) & 0x80 > 1);
+            s.regs.set_flag(CpuFlags::V, (s.regs.a as usize ^ result) & (immediate as usize ^ result) & 0x80 > 1);
         
             // load result into accumultoar
-            regs.a = result as u8;
+            s.regs.a = result as u8;
         
             Nop
         }
@@ -68,42 +68,42 @@ pub fn sbc_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMe
     }
 }
 
-pub fn jsr_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMessage {
+pub fn jsr_address(s: &mut CpuState, address: u16, cycle: usize) -> BusMessage {
     match cycle {
-        1 => Write{addr: 0x100 | regs.sp as u16, data: ((regs.pc-1) >> 8) as u8}, // push PC high byte to stack
+        1 => Write{addr: 0x100 | s.regs.sp as u16, data: ((s.regs.pc-1) >> 8) as u8}, // push PC high byte to stack
         2 => {
-            regs.sp = regs.sp.wrapping_sub(1);
-            Write{addr: 0x100 | regs.sp as u16, data: (regs.pc-1) as u8} // push PC low byte to stack
+            s.regs.sp = s.regs.sp.wrapping_sub(1);
+            Write{addr: 0x100 | s.regs.sp as u16, data: (s.regs.pc-1) as u8} // push PC low byte to stack
         }
         3 => {
-            regs.sp = regs.sp.wrapping_sub(1);
-            regs.pc = address; // jump to new PC
+            s.regs.sp = s.regs.sp.wrapping_sub(1);
+            s.regs.pc = address; // jump to new PC
             Nop
         }
         _ => Nop,
     }
 }
 
-pub fn lda_immediate(regs: &mut CPURegisters, immediate: u8, _cycle: usize) -> BusMessage {
-    regs.a = immediate;
-    regs.set_flag(CPUFlags::Z, regs.a == 0);
-    regs.set_flag(CPUFlags::N, regs.a & 0x80 == 0x80);
+pub fn lda_immediate(s: &mut CpuState, immediate: u8, _cycle: usize) -> BusMessage {
+    s.regs.a = immediate;
+    s.regs.set_flag(CpuFlags::Z, s.regs.a == 0);
+    s.regs.set_flag(CpuFlags::N, s.regs.a & 0x80 == 0x80);
     Nop
 }
 
-pub fn cpy_immediate(regs: &mut CPURegisters, immediate: u8, cycle: usize) -> BusMessage {
+pub fn cpy_immediate(s: &mut CpuState, immediate: u8, cycle: usize) -> BusMessage {
     match cycle {
         1 => {
-            let result = regs.y.wrapping_sub(regs.data); // CPY performs Y - M and sets flags
+            let result = s.regs.y.wrapping_sub(s.data); // CPY performs Y - M and sets flags
 
             // zero flag <- A == M
-            regs.set_flag(CPUFlags::Z, result == 0);
+            s.regs.set_flag(CpuFlags::Z, result == 0);
 
             // carry flag <- A >= M
-            regs.set_flag(CPUFlags::C, regs.y >= regs.data);
+            s.regs.set_flag(CpuFlags::C, s.regs.y >= s.data);
 
             // negative flag
-            regs.set_flag(CPUFlags::N, result & 0x80 == 0x80);
+            s.regs.set_flag(CpuFlags::N, result & 0x80 == 0x80);
 
             Nop
         }
@@ -111,49 +111,49 @@ pub fn cpy_immediate(regs: &mut CPURegisters, immediate: u8, cycle: usize) -> Bu
     }
 }
 
-pub fn pha_implied(regs: &mut CPURegisters, cycle: usize) -> BusMessage {
+pub fn pha_implied(s: &mut CpuState, cycle: usize) -> BusMessage {
     match cycle {
-        1 => Write{addr: 0x100 | regs.sp as u16, data: regs.a},
+        1 => Write{addr: 0x100 | s.regs.sp as u16, data: s.regs.a},
         2 => {
-            regs.sp = regs.sp.wrapping_sub(1); // decrement stack pointer
+            s.regs.sp = s.regs.sp.wrapping_sub(1); // decrement stack pointer
             Nop
         }
         _ => Nop
     }
 }
 
-pub fn sei_implied(regs: &mut CPURegisters, cycle: usize) -> BusMessage {
-    regs.set_flag(CPUFlags::I, true);
+pub fn sei_implied(s: &mut CpuState, cycle: usize) -> BusMessage {
+    s.regs.set_flag(CpuFlags::I, true);
     Nop
 }
 
-pub fn inc_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMessage {
+pub fn inc_address(s: &mut CpuState, address: u16, cycle: usize) -> BusMessage {
     match cycle {
         1 => Read{addr: address},
         2 => {
-            regs.data = regs.data.wrapping_add(1);
-            regs.set_flag(CPUFlags::Z, regs.data == 0);
-            regs.set_flag(CPUFlags::N, regs.data & 0x80 == 0x80);
+            s.data = s.data.wrapping_add(1);
+            s.regs.set_flag(CpuFlags::Z, s.data == 0);
+            s.regs.set_flag(CpuFlags::N, s.data & 0x80 == 0x80);
             Nop
         }
-        3 => Write{addr: address, data: regs.data},
+        3 => Write{addr: address, data: s.data},
         _ => Nop,
     }
 }
 
-pub fn cpx_immediate(regs: &mut CPURegisters, immediate: u8, cycle: usize) -> BusMessage {
+pub fn cpx_immediate(s: &mut CpuState, immediate: u8, cycle: usize) -> BusMessage {
     match cycle {
         1 => {
-            let result = regs.x.wrapping_sub(immediate); // CPX performs X - M and sets flags
+            let result = s.regs.x.wrapping_sub(immediate); // CPX performs X - M and sets flags
 
             // zero flag <- A == M
-            regs.set_flag(CPUFlags::Z, result == 0);
+            s.regs.set_flag(CpuFlags::Z, result == 0);
 
             // carry flag <- A >= M
-            regs.set_flag(CPUFlags::C, regs.x >= immediate);
+            s.regs.set_flag(CpuFlags::C, s.regs.x >= immediate);
 
             // negative flag
-            regs.set_flag(CPUFlags::N, result & 0x80 == 0x80);
+            s.regs.set_flag(CpuFlags::N, result & 0x80 == 0x80);
 
             Nop
         }
@@ -161,20 +161,20 @@ pub fn cpx_immediate(regs: &mut CPURegisters, immediate: u8, cycle: usize) -> Bu
     }
 }
 
-pub fn cpy_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMessage {
+pub fn cpy_address(s: &mut CpuState, address: u16, cycle: usize) -> BusMessage {
     match cycle {
         1 => Read{addr: address}, // fetch value M from memory
         2 => {
-            let result = regs.y.wrapping_sub(regs.data); // CPY performs Y - M and sets flags
+            let result = s.regs.y.wrapping_sub(s.data); // CPY performs Y - M and sets flags
 
             // zero flag <- A == M
-            regs.set_flag(CPUFlags::Z, result == 0);
+            s.regs.set_flag(CpuFlags::Z, result == 0);
 
             // carry flag <- A >= M
-            regs.set_flag(CPUFlags::C, regs.y >= regs.data);
+            s.regs.set_flag(CpuFlags::C, s.regs.y >= s.data);
 
             // negative flag
-            regs.set_flag(CPUFlags::N, result & 0x80 == 0x80);
+            s.regs.set_flag(CpuFlags::N, result & 0x80 == 0x80);
 
             Nop
         }
@@ -182,25 +182,25 @@ pub fn cpy_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMe
     }
 }
 
-pub fn rol_implied(regs: &mut CPURegisters, cycle: usize) -> BusMessage {
+pub fn rol_implied(s: &mut CpuState, cycle: usize) -> BusMessage {
     match cycle {
         1 => {
             // save status register
-            let temp = regs.status;
+            let temp = s.regs.status;
 
             // carry flag contains old MSB
-            regs.set_flag(CPUFlags::C, regs.a & 0x80 == 0x80);
+            s.regs.set_flag(CpuFlags::C, s.regs.a & 0x80 == 0x80);
 
-            regs.a <<= 1;
+            s.regs.a <<= 1;
 
             // new LSB is the old carry flag
-            regs.a |= temp & 1;
+            s.regs.a |= temp & 1;
 
             // zero flag
-            regs.set_flag(CPUFlags::Z, regs.a == 0);
+            s.regs.set_flag(CpuFlags::Z, s.regs.a == 0);
 
             // negative flag
-            regs.set_flag(CPUFlags::Z, regs.a & 0x80 == 0x80);
+            s.regs.set_flag(CpuFlags::Z, s.regs.a & 0x80 == 0x80);
 
             Nop
         }
@@ -208,113 +208,113 @@ pub fn rol_implied(regs: &mut CPURegisters, cycle: usize) -> BusMessage {
     }
 }
 
-pub fn dec_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMessage {
+pub fn dec_address(s: &mut CpuState, address: u16, cycle: usize) -> BusMessage {
     match cycle {
         1 => Read{addr: address},
         2 => {
-            regs.data = regs.data.wrapping_sub(1);
-            regs.set_flag(CPUFlags::Z, regs.data == 0);
-            regs.set_flag(CPUFlags::N, regs.data & 0x80 == 0x80);
+            s.data = s.data.wrapping_sub(1);
+            s.regs.set_flag(CpuFlags::Z, s.data == 0);
+            s.regs.set_flag(CpuFlags::N, s.data & 0x80 == 0x80);
             Nop
         }
-        3 => Write{addr: address, data: regs.data},
+        3 => Write{addr: address, data: s.data},
         _ => Nop,
     }
 }
 
-pub fn ldx_immediate(regs: &mut CPURegisters, immediate: u8, _cycle: usize) -> BusMessage {
-    regs.x = immediate;
-    regs.set_flag(CPUFlags::Z, regs.x == 0);
-    regs.set_flag(CPUFlags::N, regs.x & 0x80 == 0x80);
+pub fn ldx_immediate(s: &mut CpuState, immediate: u8, _cycle: usize) -> BusMessage {
+    s.regs.x = immediate;
+    s.regs.set_flag(CpuFlags::Z, s.regs.x == 0);
+    s.regs.set_flag(CpuFlags::N, s.regs.x & 0x80 == 0x80);
     Nop
 }
 
-pub fn tsx_implied(regs: &mut CPURegisters, cycle: usize) -> BusMessage {
-    regs.x = regs.sp;
+pub fn tsx_implied(s: &mut CpuState, cycle: usize) -> BusMessage {
+    s.regs.x = s.regs.sp;
     Nop
 }
 
-pub fn inx_implied(regs: &mut CPURegisters, cycle: usize) -> BusMessage {
-    regs.x = regs.x.wrapping_add(1);
-    regs.set_flag(CPUFlags::Z, regs.x == 0);
-    regs.set_flag(CPUFlags::N, regs.x & 0x80 == 0x80);
+pub fn inx_implied(s: &mut CpuState, cycle: usize) -> BusMessage {
+    s.regs.x = s.regs.x.wrapping_add(1);
+    s.regs.set_flag(CpuFlags::Z, s.regs.x == 0);
+    s.regs.set_flag(CpuFlags::N, s.regs.x & 0x80 == 0x80);
     Nop
 }
 
-pub fn brk_implied(regs: &mut CPURegisters, cycle: usize) -> BusMessage {
+pub fn brk_implied(s: &mut CpuState, cycle: usize) -> BusMessage {
     match cycle {
-        1 => Write{addr: 0x100 | regs.sp as u16, data: ((regs.pc+1) >> 8) as u8}, // push BRK PC+2 high byte to stack
+        1 => Write{addr: 0x100 | s.regs.sp as u16, data: ((s.regs.pc+1) >> 8) as u8}, // push BRK PC+2 high byte to stack
         2 => {
-            regs.sp = regs.sp.wrapping_sub(1);
-            Write{addr: 0x100 | regs.sp as u16, data: (regs.pc+1) as u8} // push BRK PC+2 low byte to stack
+            s.regs.sp = s.regs.sp.wrapping_sub(1);
+            Write{addr: 0x100 | s.regs.sp as u16, data: (s.regs.pc+1) as u8} // push BRK PC+2 low byte to stack
         }
         3 => {
-            regs.sp = regs.sp.wrapping_sub(1);
-            Write{addr: 0x100 | regs.sp as u16, data: regs.status | 0x10} // push status register with B set to stack
+            s.regs.sp = s.regs.sp.wrapping_sub(1);
+            Write{addr: 0x100 | s.regs.sp as u16, data: s.regs.status | 0x10} // push status register with B set to stack
         }
         4 => {
-            regs.sp = regs.sp.wrapping_sub(1);
+            s.regs.sp = s.regs.sp.wrapping_sub(1);
             Read{addr: 0xFFFE} // fetch PC low byte from vector
         }
         5 => {
-            regs.pc = regs.data as u16; // set PC low byte from stack
+            s.regs.pc = s.data as u16; // set PC low byte from stack
             Read{addr: 0xFFFF} // fetch PC high byte from vector
         }
         6 => {
-            regs.pc |= (regs.data as u16) << 8; // set PC high byte from stack
+            s.regs.pc |= (s.data as u16) << 8; // set PC high byte from stack
             Nop
         }
         _ => Nop,
     }
 }
 
-pub fn iny_implied(regs: &mut CPURegisters, cycle: usize) -> BusMessage {
-    regs.y = regs.y.wrapping_add(1);
-    regs.set_flag(CPUFlags::Z, regs.y == 0);
-    regs.set_flag(CPUFlags::N, regs.y & 0x80 == 0x80);
+pub fn iny_implied(s: &mut CpuState, cycle: usize) -> BusMessage {
+    s.regs.y = s.regs.y.wrapping_add(1);
+    s.regs.set_flag(CpuFlags::Z, s.regs.y == 0);
+    s.regs.set_flag(CpuFlags::N, s.regs.y & 0x80 == 0x80);
     Nop
 }
 
-pub fn sed_implied(regs: &mut CPURegisters, cycle: usize) -> BusMessage {
-    regs.set_flag(CPUFlags::D, true);
+pub fn sed_implied(s: &mut CpuState, cycle: usize) -> BusMessage {
+    s.regs.set_flag(CpuFlags::D, true);
     Nop
 }
 
-pub fn sbc_immediate(regs: &mut CPURegisters, mut immediate: u8, _cycle: usize) -> BusMessage {
+pub fn sbc_immediate(s: &mut CpuState, mut immediate: u8, _cycle: usize) -> BusMessage {
     // invert operand
     immediate ^= 0xFF;
     
-    let result: usize = (regs.a as usize)
+    let result: usize = (s.regs.a as usize)
                             .wrapping_add(immediate as usize)
-                            .wrapping_add(regs.get_flag(CPUFlags::C) as usize);
+                            .wrapping_add(s.regs.get_flag(CpuFlags::C) as usize);
 
     // carry flag
-    regs.set_flag(CPUFlags::C, result > 255);
+    s.regs.set_flag(CpuFlags::C, result > 255);
 
     // zero flag
-    regs.set_flag(CPUFlags::Z, (result & 0xFF) == 0);
+    s.regs.set_flag(CpuFlags::Z, (result & 0xFF) == 0);
 
     // signed overflow flag, V = (A^result) & (M^result) & 0x80
     // see http://www.righto.com/2012/12/the-6502-overflow-flag-explained.html
-    regs.set_flag(CPUFlags::V, (regs.a as usize ^ result) & (immediate as usize ^ result) & 0x80 > 1);
+    s.regs.set_flag(CpuFlags::V, (s.regs.a as usize ^ result) & (immediate as usize ^ result) & 0x80 > 1);
 
     // load result into accumultoar
-    regs.a = result as u8;
+    s.regs.a = result as u8;
 
     Nop
 }
 
-pub fn ora_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMessage {
+pub fn ora_address(s: &mut CpuState, address: u16, cycle: usize) -> BusMessage {
     match cycle {
         1 => Read{addr: address}, // fetch value from address
         2 => {
-            regs.a |= regs.data; // fetched value
+            s.regs.a |= s.data; // fetched value
 
             // zero flag
-            regs.set_flag(CPUFlags::Z, regs.a == 0);
+            s.regs.set_flag(CpuFlags::Z, s.regs.a == 0);
         
             // negative flag
-            regs.set_flag(CPUFlags::Z, regs.a & 0x80 == 0x80);
+            s.regs.set_flag(CpuFlags::Z, s.regs.a & 0x80 == 0x80);
         
             Nop
         }
@@ -322,27 +322,27 @@ pub fn ora_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMe
     }
 }
 
-pub fn sec_implied(regs: &mut CPURegisters, cycle: usize) -> BusMessage {
-    regs.set_flag(CPUFlags::C, true);
+pub fn sec_implied(s: &mut CpuState, cycle: usize) -> BusMessage {
+    s.regs.set_flag(CpuFlags::C, true);
     Nop
 }
 
-pub fn bne_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMessage {
+pub fn bne_address(s: &mut CpuState, address: u16, cycle: usize) -> BusMessage {
     match cycle {
         1 => {
-            if !regs.get_flag(CPUFlags::Z) { // zero flag not set
-                regs.extra_cycle = true;
+            if !s.regs.get_flag(CpuFlags::Z) { // zero flag not set
+                s.extra_cycle = true;
             }
             Nop
         }
         2 => { // can only be reached if branch condition met
             // branch ops need one extra cycle if the branch jumps across a page boundary
-            if regs.pc >> 8 != address >> 8 {
-                regs.extra_cycle = true;
+            if s.regs.pc >> 8 != address >> 8 {
+                s.extra_cycle = true;
             }
 
             println!("new address after branch: {:04X}", address);
-            regs.pc = address;
+            s.regs.pc = address;
             
             Nop
         }
@@ -350,112 +350,112 @@ pub fn bne_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMe
     }
 }
 
-pub fn sty_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMessage {
+pub fn sty_address(s: &mut CpuState, address: u16, cycle: usize) -> BusMessage {
     match cycle {
         1 => {
-            Write{addr: address, data: regs.y}
+            Write{addr: address, data: s.regs.y}
         },
         _ => Nop,
     }
 }
 
-pub fn ldy_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMessage {
+pub fn ldy_address(s: &mut CpuState, address: u16, cycle: usize) -> BusMessage {
     match cycle {
         1 => Read{addr: address},
         2 => {
-            regs.y = regs.data;
-            regs.set_flag(CPUFlags::Z, regs.y == 0);
-            regs.set_flag(CPUFlags::N, regs.y & 0x80 == 0x80);
+            s.regs.y = s.data;
+            s.regs.set_flag(CpuFlags::Z, s.regs.y == 0);
+            s.regs.set_flag(CpuFlags::N, s.regs.y & 0x80 == 0x80);
             Nop
         }
         _ => Nop
     }
 }
 
-pub fn rol_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMessage {
+pub fn rol_address(s: &mut CpuState, address: u16, cycle: usize) -> BusMessage {
     match cycle {
         1 => Read{addr: address}, // fetch value
         2 => {
             // save status register
-            let temp = regs.status;
+            let temp = s.regs.status;
             
             // carry flag contains old LSB
-            regs.set_flag(CPUFlags::C, regs.data & 0x80 == 0x80); // work with fetched value
+            s.regs.set_flag(CpuFlags::C, s.data & 0x80 == 0x80); // work with fetched value
 
-            regs.data <<= 1;
+            s.data <<= 1;
 
             // new LSB is the old carry flag
-            regs.data |= temp & 1;
+            s.data |= temp & 1;
 
             // zero flag
-            regs.set_flag(CPUFlags::Z, regs.data == 0);
+            s.regs.set_flag(CpuFlags::Z, s.data == 0);
         
             // negative flag
-            regs.set_flag(CPUFlags::N, regs.data & 0x80 == 0x80);
+            s.regs.set_flag(CpuFlags::N, s.data & 0x80 == 0x80);
         
-            Write{addr: address, data: regs.data} // write back changed value
+            Write{addr: address, data: s.data} // write back changed value
         }
         _ => Nop
     }
 }
 
-pub fn dex_implied(regs: &mut CPURegisters, cycle: usize) -> BusMessage {
-    regs.x = regs.x.wrapping_sub(1);
-    regs.set_flag(CPUFlags::Z, regs.x == 0);
-    regs.set_flag(CPUFlags::N, regs.x & 0x80 == 0x80);
+pub fn dex_implied(s: &mut CpuState, cycle: usize) -> BusMessage {
+    s.regs.x = s.regs.x.wrapping_sub(1);
+    s.regs.set_flag(CpuFlags::Z, s.regs.x == 0);
+    s.regs.set_flag(CpuFlags::N, s.regs.x & 0x80 == 0x80);
     Nop
 }
 
-pub fn php_implied(regs: &mut CPURegisters, cycle: usize) -> BusMessage {
+pub fn php_implied(s: &mut CpuState, cycle: usize) -> BusMessage {
     match cycle {
-        1 => Write{addr: 0x100 | regs.sp as u16, data: regs.status},
+        1 => Write{addr: 0x100 | s.regs.sp as u16, data: s.regs.status},
         2 => {
-            regs.sp = regs.sp.wrapping_sub(1); // decrement stack pointer
+            s.regs.sp = s.regs.sp.wrapping_sub(1); // decrement stack pointer
             Nop
         }
         _ => Nop
     }
 }
 
-pub fn rti_implied(regs: &mut CPURegisters, cycle: usize) -> BusMessage {
+pub fn rti_implied(s: &mut CpuState, cycle: usize) -> BusMessage {
     match cycle {
         1 => {
-            regs.sp = regs.sp.wrapping_add(1); // increment stack pointer
-            Read{addr: 0x100 | regs.sp as u16} // pull status register from stack
+            s.regs.sp = s.regs.sp.wrapping_add(1); // increment stack pointer
+            Read{addr: 0x100 | s.regs.sp as u16} // pull status register from stack
         }
         2 => {
-            regs.status = regs.data; // set status register from stack
+            s.regs.status = s.data; // set status register from stack
 
-            regs.sp = regs.sp.wrapping_add(1); // increment stack pointer
-            Read{addr: 0x100 | regs.sp as u16} // pull PC low byte from stack
+            s.regs.sp = s.regs.sp.wrapping_add(1); // increment stack pointer
+            Read{addr: 0x100 | s.regs.sp as u16} // pull PC low byte from stack
         }
         3 => {
-            regs.pc = regs.data as u16; // set PC low byte from stack
+            s.regs.pc = s.data as u16; // set PC low byte from stack
 
-            regs.sp = regs.sp.wrapping_add(1); // increment stack pointer
-            Read{addr: 0x100 | regs.sp as u16} // pull PC high byte from stack
+            s.regs.sp = s.regs.sp.wrapping_add(1); // increment stack pointer
+            Read{addr: 0x100 | s.regs.sp as u16} // pull PC high byte from stack
         }
         4 => {
-            regs.pc |= (regs.data as u16) << 8; // set PC high byte from stack
+            s.regs.pc |= (s.data as u16) << 8; // set PC high byte from stack
             Nop
         }
         _ => Nop,
     }
 }
 
-pub fn asl_implied(regs: &mut CPURegisters, cycle: usize) -> BusMessage {
+pub fn asl_implied(s: &mut CpuState, cycle: usize) -> BusMessage {
     match cycle {
         1 => {
             // carry flag contains old MSB
-            regs.set_flag(CPUFlags::C, regs.a & 0x80 == 0x80);
+            s.regs.set_flag(CpuFlags::C, s.regs.a & 0x80 == 0x80);
 
-            regs.a <<= 1;
+            s.regs.a <<= 1;
 
             // zero flag
-            regs.set_flag(CPUFlags::Z, regs.a == 0);
+            s.regs.set_flag(CpuFlags::Z, s.regs.a == 0);
 
             // negative flag
-            regs.set_flag(CPUFlags::Z, regs.a & 0x80 == 0x80);
+            s.regs.set_flag(CpuFlags::Z, s.regs.a & 0x80 == 0x80);
 
             Nop
         }
@@ -463,79 +463,79 @@ pub fn asl_implied(regs: &mut CPURegisters, cycle: usize) -> BusMessage {
     }
 }
 
-pub fn ldx_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMessage {
+pub fn ldx_address(s: &mut CpuState, address: u16, cycle: usize) -> BusMessage {
     match cycle {
         1 => Read{addr: address},
         2 => {
-            regs.x = regs.data;
-            regs.set_flag(CPUFlags::Z, regs.x == 0);
-            regs.set_flag(CPUFlags::N, regs.x & 0x80 == 0x80);
+            s.regs.x = s.data;
+            s.regs.set_flag(CpuFlags::Z, s.regs.x == 0);
+            s.regs.set_flag(CpuFlags::N, s.regs.x & 0x80 == 0x80);
             Nop
         }
         _ => Nop
     }
 }
 
-pub fn clv_implied(regs: &mut CPURegisters, cycle: usize) -> BusMessage {
-    regs.set_flag(CPUFlags::V, false);
+pub fn clv_implied(s: &mut CpuState, cycle: usize) -> BusMessage {
+    s.regs.set_flag(CpuFlags::V, false);
     Nop
 }
 
-pub fn nop_implied(regs: &mut CPURegisters, cycle: usize) -> BusMessage {
+pub fn nop_implied(s: &mut CpuState, cycle: usize) -> BusMessage {
     Nop
 }
 
-pub fn adc_immediate(regs: &mut CPURegisters, immediate: u8, _cycle: usize) -> BusMessage {
-    let result: usize = (regs.a as usize)
+pub fn adc_immediate(s: &mut CpuState, immediate: u8, _cycle: usize) -> BusMessage {
+    let result: usize = (s.regs.a as usize)
                             .wrapping_add(immediate as usize)
-                            .wrapping_add(regs.get_flag(CPUFlags::C) as usize);
+                            .wrapping_add(s.regs.get_flag(CpuFlags::C) as usize);
 
     // carry flag
-    regs.set_flag(CPUFlags::C, result > 255);
+    s.regs.set_flag(CpuFlags::C, result > 255);
 
     // zero flag
-    regs.set_flag(CPUFlags::Z, (result & 0xFF) == 0);
+    s.regs.set_flag(CpuFlags::Z, (result & 0xFF) == 0);
 
     // signed overflow flag, V = (A^result) & (M^result) & 0x80
     // see http://www.righto.com/2012/12/the-6502-overflow-flag-explained.html
-    regs.set_flag(CPUFlags::V, (regs.a as usize ^ result) & (immediate as usize ^ result) & 0x80 > 1);
+    s.regs.set_flag(CpuFlags::V, (s.regs.a as usize ^ result) & (immediate as usize ^ result) & 0x80 > 1);
 
     // load result into accumultoar
-    regs.a = result as u8;
+    s.regs.a = result as u8;
 
     Nop
 }
 
-pub fn cli_implied(regs: &mut CPURegisters, cycle: usize) -> BusMessage {
-    regs.set_flag(CPUFlags::I, false);
+pub fn cli_implied(s: &mut CpuState, cycle: usize) -> BusMessage {
+    s.regs.set_flag(CpuFlags::I, false);
     Nop
 }
 
-pub fn stx_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMessage {
+pub fn stx_address(s: &mut CpuState, address: u16, cycle: usize) -> BusMessage {
     match cycle {
         1 => {
-            Write{addr: address, data: regs.x}
+            Write{addr: address, data: s.regs.x}
         },
         _ => Nop,
     }
 }
 
-pub fn bmi_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMessage {
+pub fn bmi_address(s: &mut CpuState, address: u16, cycle: usize) -> BusMessage {
     match cycle {
         1 => {
-            if regs.get_flag(CPUFlags::N) { // negative flag set
-                regs.extra_cycle = true;
+            if s.regs.get_flag(CpuFlags::N) { // negative flag set
+                s.extra_cycle = true;
             }
             Nop
         }
         2 => { // can only be reached if branch condition met
             // branch ops need one extra cycle if the branch jumps across a page boundary
-            if regs.pc >> 8 != address >> 8 {
-                regs.extra_cycle = true;
+            if s.regs.pc >> 8 != address >> 8 {
+                s.extra_cycle = true;
             }
 
             println!("new address after branch: {:04X}", address);
-            regs.pc = address;
+            s.regs.pc = address;
             
             Nop
         }
@@ -543,36 +543,36 @@ pub fn bmi_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMe
     }
 }
 
-pub fn ldy_immediate(regs: &mut CPURegisters, immediate: u8, _cycle: usize) -> BusMessage {
-    regs.y = immediate;
-    regs.set_flag(CPUFlags::Z, regs.y == 0);
-    regs.set_flag(CPUFlags::N, regs.y & 0x80 == 0x80);
+pub fn ldy_immediate(s: &mut CpuState, immediate: u8, _cycle: usize) -> BusMessage {
+    s.regs.y = immediate;
+    s.regs.set_flag(CpuFlags::Z, s.regs.y == 0);
+    s.regs.set_flag(CpuFlags::N, s.regs.y & 0x80 == 0x80);
     Nop
 }
 
-pub fn tax_implied(regs: &mut CPURegisters, cycle: usize) -> BusMessage {
-    regs.x = regs.a;
+pub fn tax_implied(s: &mut CpuState, cycle: usize) -> BusMessage {
+    s.regs.x = s.regs.a;
     Nop
 }
 
-pub fn dey_implied(regs: &mut CPURegisters, cycle: usize) -> BusMessage {
-    regs.y = regs.y.wrapping_sub(1);
-    regs.set_flag(CPUFlags::Z, regs.y == 0);
-    regs.set_flag(CPUFlags::N, regs.y & 0x80 == 0x80);
+pub fn dey_implied(s: &mut CpuState, cycle: usize) -> BusMessage {
+    s.regs.y = s.regs.y.wrapping_sub(1);
+    s.regs.set_flag(CpuFlags::Z, s.regs.y == 0);
+    s.regs.set_flag(CpuFlags::N, s.regs.y & 0x80 == 0x80);
     Nop
 }
 
-pub fn eor_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMessage {
+pub fn eor_address(s: &mut CpuState, address: u16, cycle: usize) -> BusMessage {
     match cycle {
         1 => Read{addr: address}, // fetch value from address
         2 => {
-            regs.a ^= regs.data; // fetched value
+            s.regs.a ^= s.data; // fetched value
 
             // zero flag
-            regs.set_flag(CPUFlags::Z, regs.a == 0);
+            s.regs.set_flag(CpuFlags::Z, s.regs.a == 0);
         
             // negative flag
-            regs.set_flag(CPUFlags::Z, regs.a & 0x80 == 0x80);
+            s.regs.set_flag(CpuFlags::Z, s.regs.a & 0x80 == 0x80);
         
             Nop
         }
@@ -580,19 +580,19 @@ pub fn eor_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMe
     }
 }
 
-pub fn lsr_implied(regs: &mut CPURegisters, cycle: usize) -> BusMessage {
+pub fn lsr_implied(s: &mut CpuState, cycle: usize) -> BusMessage {
     match cycle {
         1 => {
             // carry flag contains old LSB
-            regs.set_flag(CPUFlags::C, regs.a & 1 == 1);
+            s.regs.set_flag(CpuFlags::C, s.regs.a & 1 == 1);
 
-            regs.a >>= 1;
+            s.regs.a >>= 1;
 
             // zero flag
-            regs.set_flag(CPUFlags::Z, regs.a == 0);
+            s.regs.set_flag(CpuFlags::Z, s.regs.a == 0);
 
             // negative flag
-            regs.set_flag(CPUFlags::Z, regs.a & 0x80 == 0x80);
+            s.regs.set_flag(CpuFlags::Z, s.regs.a & 0x80 == 0x80);
 
             Nop
         }
@@ -600,22 +600,22 @@ pub fn lsr_implied(regs: &mut CPURegisters, cycle: usize) -> BusMessage {
     }
 }
 
-pub fn bvs_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMessage {
+pub fn bvs_address(s: &mut CpuState, address: u16, cycle: usize) -> BusMessage {
     match cycle {
         1 => {
-            if regs.get_flag(CPUFlags::V) { // overflow flag set
-                regs.extra_cycle = true;
+            if s.regs.get_flag(CpuFlags::V) { // overflow flag set
+                s.extra_cycle = true;
             }
             Nop
         }
         2 => { // can only be reached if branch condition met
             // branch ops need one extra cycle if the branch jumps across a page boundary
-            if regs.pc >> 8 != address >> 8 {
-                regs.extra_cycle = true;
+            if s.regs.pc >> 8 != address >> 8 {
+                s.extra_cycle = true;
             }
 
             println!("new address after branch: {:04X}", address);
-            regs.pc = address;
+            s.regs.pc = address;
             
             Nop
         }
@@ -623,115 +623,115 @@ pub fn bvs_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMe
     }
 }
 
-pub fn rts_implied(regs: &mut CPURegisters, cycle: usize) -> BusMessage {
+pub fn rts_implied(s: &mut CpuState, cycle: usize) -> BusMessage {
     match cycle {
         1 => {
-            regs.sp = regs.sp.wrapping_add(1); // increment stack pointer
-            Read{addr: 0x100 | regs.sp as u16} // load new PC low
+            s.regs.sp = s.regs.sp.wrapping_add(1); // increment stack pointer
+            Read{addr: 0x100 | s.regs.sp as u16} // load new PC low
         }
         2 => {
-            regs.pc = regs.data as u16;
-            regs.sp = regs.sp.wrapping_add(1); // increment stack pointer
-            Read{addr: 0x100 | regs.sp as u16} // load new PC high
+            s.regs.pc = s.data as u16;
+            s.regs.sp = s.regs.sp.wrapping_add(1); // increment stack pointer
+            Read{addr: 0x100 | s.regs.sp as u16} // load new PC high
         }
         3 => {
-            regs.pc |= (regs.data as u16) << 8;
+            s.regs.pc |= (s.data as u16) << 8;
             Nop
         }
         4 => {
-            regs.pc += 1; // increment PC by one to point to next opcode
+            s.regs.pc += 1; // increment PC by one to point to next opcode
             Nop
         }
         _ => Nop,
     }
 }
 
-pub fn tya_implied(regs: &mut CPURegisters, cycle: usize) -> BusMessage {
-    regs.a = regs.y;
+pub fn tya_implied(s: &mut CpuState, cycle: usize) -> BusMessage {
+    s.regs.a = s.regs.y;
     Nop
 }
 
-pub fn plp_implied(regs: &mut CPURegisters, cycle: usize) -> BusMessage {
+pub fn plp_implied(s: &mut CpuState, cycle: usize) -> BusMessage {
     match cycle {
         1 => {
-            regs.sp = regs.sp.wrapping_add(1); // increment stack pointer
-            Read{addr: 0x100 | regs.sp as u16}
+            s.regs.sp = s.regs.sp.wrapping_add(1); // increment stack pointer
+            Read{addr: 0x100 | s.regs.sp as u16}
         }
         2 => {
-            regs.status = regs.data;
+            s.regs.status = s.data;
             Nop
         }
         _ => Nop
     }
 }
 
-pub fn and_immediate(regs: &mut CPURegisters, immediate: u8, _cycle: usize) -> BusMessage {
-    regs.a &= immediate;
+pub fn and_immediate(s: &mut CpuState, immediate: u8, _cycle: usize) -> BusMessage {
+    s.regs.a &= immediate;
 
     // zero flag
-    regs.set_flag(CPUFlags::Z, regs.a == 0);
+    s.regs.set_flag(CpuFlags::Z, s.regs.a == 0);
 
     // negative flag
-    regs.set_flag(CPUFlags::Z, regs.a & 0x80 == 0x80);
+    s.regs.set_flag(CpuFlags::Z, s.regs.a & 0x80 == 0x80);
 
     Nop
 }
 
-pub fn jmp_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMessage {
-    regs.pc = address;
+pub fn jmp_address(s: &mut CpuState, address: u16, cycle: usize) -> BusMessage {
+    s.regs.pc = address;
     Nop
 }
 
-pub fn ror_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMessage {
+pub fn ror_address(s: &mut CpuState, address: u16, cycle: usize) -> BusMessage {
     match cycle {
         1 => Read{addr: address}, // fetch value
         2 => {
             // save status register
-            let temp = regs.status;
+            let temp = s.regs.status;
             
             // carry flag contains old LSB
-            regs.set_flag(CPUFlags::C, regs.data & 1 == 1); // work with fetched value
+            s.regs.set_flag(CpuFlags::C, s.data & 1 == 1); // work with fetched value
 
-            regs.data >>= 1;
+            s.data >>= 1;
 
             // new MSB is the old carry flag
-            regs.data |= (temp & 1) << 7;
+            s.data |= (temp & 1) << 7;
         
             // zero flag
-            regs.set_flag(CPUFlags::Z, regs.data == 0);
+            s.regs.set_flag(CpuFlags::Z, s.data == 0);
         
             // negative flag
-            regs.set_flag(CPUFlags::Z, regs.data & 0x80 == 0x80);
+            s.regs.set_flag(CpuFlags::Z, s.data & 0x80 == 0x80);
         
-            Write{addr: address, data: regs.data} // write back changed value
+            Write{addr: address, data: s.data} // write back changed value
         }
         _ => Nop
     }
 }
 
-pub fn sta_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMessage {
+pub fn sta_address(s: &mut CpuState, address: u16, cycle: usize) -> BusMessage {
     match cycle {
         1 => {
-            Write{addr: address, data: regs.a}
+            Write{addr: address, data: s.regs.a}
         },
         _ => Nop,
     }
 }
 
-pub fn cmp_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMessage {
+pub fn cmp_address(s: &mut CpuState, address: u16, cycle: usize) -> BusMessage {
     match cycle {
         1 => Read{addr: address}, // fetch value M from memory
         2 => {
-            let result = regs.a.wrapping_sub(regs.data); // CMP performs A - M and sets flags
+            let result = s.regs.a.wrapping_sub(s.data); // CMP performs A - M and sets flags
 
             // zero flag <- A == M
-            regs.set_flag(CPUFlags::Z, result == 0);
+            s.regs.set_flag(CpuFlags::Z, result == 0);
 
             // carry flag <- A >= M
-            regs.set_flag(CPUFlags::C, regs.a >= regs.data);
+            s.regs.set_flag(CpuFlags::C, s.regs.a >= s.data);
 
             // negative flag
-            regs.set_flag(CPUFlags::N, result & 0x80 == 0x80);
+            s.regs.set_flag(CpuFlags::N, result & 0x80 == 0x80);
 
             Nop
         }
@@ -739,22 +739,22 @@ pub fn cmp_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMe
     }
 }
 
-pub fn beq_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMessage {
+pub fn beq_address(s: &mut CpuState, address: u16, cycle: usize) -> BusMessage {
     match cycle {
         1 => {
-            if regs.get_flag(CPUFlags::Z) { // zero flag set
-                regs.extra_cycle = true;
+            if s.regs.get_flag(CpuFlags::Z) { // zero flag set
+                s.extra_cycle = true;
             }
             Nop
         }
         2 => { // can only be reached if branch condition met
             // branch ops need one extra cycle if the branch jumps across a page boundary
-            if regs.pc >> 8 != address >> 8 {
-                regs.extra_cycle = true;
+            if s.regs.pc >> 8 != address >> 8 {
+                s.extra_cycle = true;
             }
 
             println!("new address after branch: {:04X}", address);
-            regs.pc = address;
+            s.regs.pc = address;
             
             Nop
         }
@@ -762,60 +762,60 @@ pub fn beq_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMe
     }
 }
 
-pub fn lda_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMessage {
+pub fn lda_address(s: &mut CpuState, address: u16, cycle: usize) -> BusMessage {
     match cycle {
         1 => Read{addr: address},
         2 => {
-            regs.a = regs.data;
-            regs.set_flag(CPUFlags::Z, regs.a == 0);
-            regs.set_flag(CPUFlags::N, regs.a & 0x80 == 0x80);
+            s.regs.a = s.data;
+            s.regs.set_flag(CpuFlags::Z, s.regs.a == 0);
+            s.regs.set_flag(CpuFlags::N, s.regs.a & 0x80 == 0x80);
             Nop
         }
         _ => Nop
     }
 }
 
-pub fn lsr_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMessage {
+pub fn lsr_address(s: &mut CpuState, address: u16, cycle: usize) -> BusMessage {
     match cycle {
         1 => Read{addr: address}, // fetch value
         2 => {
             // carry flag contains old LSB
-            regs.set_flag(CPUFlags::C, regs.data & 1 == 1); // work with fetched value
+            s.regs.set_flag(CpuFlags::C, s.data & 1 == 1); // work with fetched value
 
-            regs.data >>= 1;
+            s.data >>= 1;
         
             // zero flag
-            regs.set_flag(CPUFlags::Z, regs.data == 0);
+            s.regs.set_flag(CpuFlags::Z, s.data == 0);
         
             // negative flag
-            regs.set_flag(CPUFlags::Z, regs.data & 0x80 == 0x80);
+            s.regs.set_flag(CpuFlags::Z, s.data & 0x80 == 0x80);
         
-            Write{addr: address, data: regs.data} // write back changed value
+            Write{addr: address, data: s.data} // write back changed value
         }
         _ => Nop
     }
 }
 
-pub fn adc_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMessage {
+pub fn adc_address(s: &mut CpuState, address: u16, cycle: usize) -> BusMessage {
     match cycle {
         1 => BusMessage::Read{addr: address}, // fetch value
         2 => {
-            let result: usize = (regs.a as usize)
-                                    .wrapping_add(regs.data as usize)
-                                    .wrapping_add(regs.get_flag(CPUFlags::C) as usize);
+            let result: usize = (s.regs.a as usize)
+                                    .wrapping_add(s.data as usize)
+                                    .wrapping_add(s.regs.get_flag(CpuFlags::C) as usize);
 
             // carry flag
-            regs.set_flag(CPUFlags::C, result > 255);
+            s.regs.set_flag(CpuFlags::C, result > 255);
         
             // zero flag
-            regs.set_flag(CPUFlags::Z, (result & 0xFF) == 0);
+            s.regs.set_flag(CpuFlags::Z, (result & 0xFF) == 0);
         
             // signed overflow flag, V = (A^result) & (M^result) & 0x80
             // see http://www.righto.com/2012/12/the-6502-overflow-flag-explained.html
-            regs.set_flag(CPUFlags::V, (regs.a as usize ^ result) & (regs.data as usize ^ result) & 0x80 > 1);
+            s.regs.set_flag(CpuFlags::V, (s.regs.a as usize ^ result) & (s.data as usize ^ result) & 0x80 > 1);
         
             // load result into accumultoar
-            regs.a = result as u8;
+            s.regs.a = result as u8;
         
             Nop
         }
@@ -823,22 +823,22 @@ pub fn adc_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMe
     }
 }
 
-pub fn bcs_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMessage {
+pub fn bcs_address(s: &mut CpuState, address: u16, cycle: usize) -> BusMessage {
     match cycle {
         1 => {
-            if regs.get_flag(CPUFlags::C) { // carry flag set
-                regs.extra_cycle = true;
+            if s.regs.get_flag(CpuFlags::C) { // carry flag set
+                s.extra_cycle = true;
             }
             Nop
         }
         2 => { // can only be reached if branch condition met
             // branch ops need one extra cycle if the branch jumps across a page boundary
-            if regs.pc >> 8 != address >> 8 {
-                regs.extra_cycle = true;
+            if s.regs.pc >> 8 != address >> 8 {
+                s.extra_cycle = true;
             }
 
             println!("new address after branch: {:04X}", address);
-            regs.pc = address;
+            s.regs.pc = address;
             
             Nop
         }
@@ -846,25 +846,25 @@ pub fn bcs_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMe
     }
 }
 
-pub fn ror_implied(regs: &mut CPURegisters, cycle: usize) -> BusMessage {
+pub fn ror_implied(s: &mut CpuState, cycle: usize) -> BusMessage {
     match cycle {
         1 => {
             // save status register
-            let temp = regs.status;
+            let temp = s.regs.status;
 
             // carry flag contains old LSB
-            regs.set_flag(CPUFlags::C, regs.a & 1 == 1);
+            s.regs.set_flag(CpuFlags::C, s.regs.a & 1 == 1);
 
-            regs.a >>= 1;
+            s.regs.a >>= 1;
 
             // new MSB is the old carry flag
-            regs.a |= (temp & 1) << 7;
+            s.regs.a |= (temp & 1) << 7;
 
             // zero flag
-            regs.set_flag(CPUFlags::Z, regs.a == 0);
+            s.regs.set_flag(CpuFlags::Z, s.regs.a == 0);
 
             // negative flag
-            regs.set_flag(CPUFlags::Z, regs.a & 0x80 == 0x80);
+            s.regs.set_flag(CpuFlags::Z, s.regs.a & 0x80 == 0x80);
 
             Nop
         }
@@ -872,20 +872,20 @@ pub fn ror_implied(regs: &mut CPURegisters, cycle: usize) -> BusMessage {
     }
 }
 
-pub fn cpx_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMessage {
+pub fn cpx_address(s: &mut CpuState, address: u16, cycle: usize) -> BusMessage {
     match cycle {
         1 => Read{addr: address}, // fetch value M from memory
         2 => {
-            let result = regs.x.wrapping_sub(regs.data); // CPX performs A - M and sets flags
+            let result = s.regs.x.wrapping_sub(s.data); // CPX performs A - M and sets flags
 
             // zero flag <- A == M
-            regs.set_flag(CPUFlags::Z, result == 0);
+            s.regs.set_flag(CpuFlags::Z, result == 0);
 
             // carry flag <- A >= M
-            regs.set_flag(CPUFlags::C, regs.x >= regs.data);
+            s.regs.set_flag(CpuFlags::C, s.regs.x >= s.data);
 
             // negative flag
-            regs.set_flag(CPUFlags::N, result & 0x80 == 0x80);
+            s.regs.set_flag(CpuFlags::N, result & 0x80 == 0x80);
 
             Nop
         }
@@ -893,17 +893,17 @@ pub fn cpx_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMe
     }
 }
 
-pub fn and_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMessage {
+pub fn and_address(s: &mut CpuState, address: u16, cycle: usize) -> BusMessage {
     match cycle {
         1 => Read{addr: address}, // fetch value from address
         2 => {
-            regs.a &= regs.data; // fetched value
+            s.regs.a &= s.data; // fetched value
 
             // zero flag
-            regs.set_flag(CPUFlags::Z, regs.a == 0);
+            s.regs.set_flag(CpuFlags::Z, s.regs.a == 0);
         
             // negative flag
-            regs.set_flag(CPUFlags::Z, regs.a & 0x80 == 0x80);
+            s.regs.set_flag(CpuFlags::Z, s.regs.a & 0x80 == 0x80);
         
             Nop
         }
@@ -911,57 +911,57 @@ pub fn and_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMe
     }
 }
 
-pub fn eor_immediate(regs: &mut CPURegisters, immediate: u8, _cycle: usize) -> BusMessage {
-    regs.a ^= immediate;
+pub fn eor_immediate(s: &mut CpuState, immediate: u8, _cycle: usize) -> BusMessage {
+    s.regs.a ^= immediate;
 
     // zero flag
-    regs.set_flag(CPUFlags::Z, regs.a == 0);
+    s.regs.set_flag(CpuFlags::Z, s.regs.a == 0);
 
     // negative flag
-    regs.set_flag(CPUFlags::Z, regs.a & 0x80 == 0x80);
+    s.regs.set_flag(CpuFlags::Z, s.regs.a & 0x80 == 0x80);
 
     Nop
 }
 
-pub fn pla_implied(regs: &mut CPURegisters, cycle: usize) -> BusMessage {
+pub fn pla_implied(s: &mut CpuState, cycle: usize) -> BusMessage {
     match cycle {
         1 => {
-            regs.sp = regs.sp.wrapping_add(1); // increment stack pointer
-            Read{addr: 0x100 | regs.sp as u16}
+            s.regs.sp = s.regs.sp.wrapping_add(1); // increment stack pointer
+            Read{addr: 0x100 | s.regs.sp as u16}
         }
         2 => {
-            regs.a = regs.data;
+            s.regs.a = s.data;
             Nop
         }
         _ => Nop
     }
 }
 
-pub fn ora_immediate(regs: &mut CPURegisters, immediate: u8, _cycle: usize) -> BusMessage {
-    regs.a |= immediate;
+pub fn ora_immediate(s: &mut CpuState, immediate: u8, _cycle: usize) -> BusMessage {
+    s.regs.a |= immediate;
 
     // zero flag
-    regs.set_flag(CPUFlags::Z, regs.a == 0);
+    s.regs.set_flag(CpuFlags::Z, s.regs.a == 0);
 
     // negative flag
-    regs.set_flag(CPUFlags::Z, regs.a & 0x80 == 0x80);
+    s.regs.set_flag(CpuFlags::Z, s.regs.a & 0x80 == 0x80);
 
     Nop
 }
 
-pub fn cmp_immediate(regs: &mut CPURegisters, immediate: u8, cycle: usize) -> BusMessage {
+pub fn cmp_immediate(s: &mut CpuState, immediate: u8, cycle: usize) -> BusMessage {
     match cycle {
         1 => {
-            let result = regs.a.wrapping_sub(immediate); // CMP performs A - M and sets flags
+            let result = s.regs.a.wrapping_sub(immediate); // CMP performs A - M and sets flags
 
             // zero flag <- A == M
-            regs.set_flag(CPUFlags::Z, result == 0);
+            s.regs.set_flag(CpuFlags::Z, result == 0);
 
             // carry flag <- A >= M
-            regs.set_flag(CPUFlags::C, regs.a >= immediate);
+            s.regs.set_flag(CpuFlags::C, s.regs.a >= immediate);
 
             // negative flag
-            regs.set_flag(CPUFlags::N, result & 0x80 == 0x80);
+            s.regs.set_flag(CpuFlags::N, result & 0x80 == 0x80);
 
             Nop
         }
@@ -969,27 +969,27 @@ pub fn cmp_immediate(regs: &mut CPURegisters, immediate: u8, cycle: usize) -> Bu
     }
 }
 
-pub fn clc_implied(regs: &mut CPURegisters, cycle: usize) -> BusMessage {
-    regs.set_flag(CPUFlags::C, false);
+pub fn clc_implied(s: &mut CpuState, cycle: usize) -> BusMessage {
+    s.regs.set_flag(CpuFlags::C, false);
     Nop
 }
 
-pub fn bpl_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMessage {
+pub fn bpl_address(s: &mut CpuState, address: u16, cycle: usize) -> BusMessage {
     match cycle {
         1 => {
-            if !regs.get_flag(CPUFlags::N) { // negative flag not set
-                regs.extra_cycle = true;
+            if !s.regs.get_flag(CpuFlags::N) { // negative flag not set
+                s.extra_cycle = true;
             }
             Nop
         }
         2 => { // can only be reached if branch condition met
             // branch ops need one extra cycle if the branch jumps across a page boundary
-            if regs.pc >> 8 != address >> 8 {
-                regs.extra_cycle = true;
+            if s.regs.pc >> 8 != address >> 8 {
+                s.extra_cycle = true;
             }
 
             println!("new address after branch: {:04X}", address);
-            regs.pc = address;
+            s.regs.pc = address;
             
             Nop
         }
@@ -997,20 +997,20 @@ pub fn bpl_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMe
     }
 }
 
-pub fn bit_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMessage {
+pub fn bit_address(s: &mut CpuState, address: u16, cycle: usize) -> BusMessage {
     match cycle {
         1 => Read{addr: address}, // fetch operand M
         2 => {
-            let result = regs.a & regs.data; // BIT performs A & M but doesn't store the result
+            let result = s.regs.a & s.data; // BIT performs A & M but doesn't store the result
 
             // zero flag
-            regs.set_flag(CPUFlags::Z, result == 0);
+            s.regs.set_flag(CpuFlags::Z, result == 0);
 
             // overflow flag <- M6
-            regs.set_flag(CPUFlags::V, regs.data & 0x70 == 0x70);
+            s.regs.set_flag(CpuFlags::V, s.data & 0x70 == 0x70);
 
             // negative flag <- M7
-            regs.set_flag(CPUFlags::N, regs.data & 0x80 == 0x80);
+            s.regs.set_flag(CpuFlags::N, s.data & 0x80 == 0x80);
 
             Nop
         }
@@ -1018,27 +1018,27 @@ pub fn bit_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMe
     }
 }
 
-pub fn txa_implied(regs: &mut CPURegisters, cycle: usize) -> BusMessage {
-    regs.a = regs.x;
+pub fn txa_implied(s: &mut CpuState, cycle: usize) -> BusMessage {
+    s.regs.a = s.regs.x;
     Nop
 }
 
-pub fn bvc_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMessage {
+pub fn bvc_address(s: &mut CpuState, address: u16, cycle: usize) -> BusMessage {
     match cycle {
         1 => {
-            if !regs.get_flag(CPUFlags::V) { // overflow flag not set
-                regs.extra_cycle = true;
+            if !s.regs.get_flag(CpuFlags::V) { // overflow flag not set
+                s.extra_cycle = true;
             }
             Nop
         }
         2 => { // can only be reached if branch condition met
             // branch ops need one extra cycle if the branch jumps across a page boundary
-            if regs.pc >> 8 != address >> 8 {
-                regs.extra_cycle = true;
+            if s.regs.pc >> 8 != address >> 8 {
+                s.extra_cycle = true;
             }
 
             println!("new address after branch: {:04X}", address);
-            regs.pc = address;
+            s.regs.pc = address;
             
             Nop
         }
@@ -1046,22 +1046,22 @@ pub fn bvc_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMe
     }
 }
 
-pub fn bcc_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMessage {
+pub fn bcc_address(s: &mut CpuState, address: u16, cycle: usize) -> BusMessage {
     match cycle {
         1 => {
-            if !regs.get_flag(CPUFlags::C) { // carry flag not set
-                regs.extra_cycle = true;
+            if !s.regs.get_flag(CpuFlags::C) { // carry flag not set
+                s.extra_cycle = true;
             }
             Nop
         }
         2 => { // can only be reached if branch condition met
             // branch ops need one extra cycle if the branch jumps across a page boundary
-            if regs.pc >> 8 != address >> 8 {
-                regs.extra_cycle = true;
+            if s.regs.pc >> 8 != address >> 8 {
+                s.extra_cycle = true;
             }
 
             println!("new address after branch: {:04X}", address);
-            regs.pc = address;
+            s.regs.pc = address;
             
             Nop
         }
@@ -1069,62 +1069,62 @@ pub fn bcc_address(regs: &mut CPURegisters, address: u16, cycle: usize) -> BusMe
     }
 }
 
-pub fn reset(regs: &mut CPURegisters, reset_vector: u16, cycle: usize) -> BusMessage {
+pub fn reset(s: &mut CpuState, reset_vector: u16, cycle: usize) -> BusMessage {
     match cycle {
         x if x < 6 => Nop,
         6 => {
-            regs.set_flag(CPUFlags::I, true);
+            s.regs.set_flag(CpuFlags::I, true);
             Read{addr: reset_vector}
         },
         7 => {
-            regs.pc |= regs.data as u16; // set low byte of new PC address
+            s.regs.pc |= s.data as u16; // set low byte of new PC address
             Read{addr: reset_vector+1}
         },
         8 => {
-            regs.pc |= (regs.data as u16) << 8; // set high byte of ne PC address
+            s.regs.pc |= (s.data as u16) << 8; // set high byte of ne PC address
 
             // reset rest of the registers
-            regs.a = 0x00;
-            regs.x = 0x00;
-            regs.y = 0x00;
-            regs.sp = 0xFD; // default address for stack pointer
-            regs.status = 0x24; // 3rd bit unused and always high, I flag still set
+            s.regs.a = 0x00;
+            s.regs.x = 0x00;
+            s.regs.y = 0x00;
+            s.regs.sp = 0xFD; // default address for stack pointer
+            s.regs.status = 0x24; // 3rd bit unused and always high, I flag still set
 
             // also the relevant helpers
-            regs.op = 0x00;
-            regs.o1 = 0x00;
-            regs.o2 = 0x00;
+            s.op = 0x00;
+            s.o1 = 0x00;
+            s.o2 = 0x00;
             
-            Read{addr: regs.pc}
+            Read{addr: s.regs.pc}
         },
         _ => panic!("Impossible cycle count in match, reset takes 8 cycles"),
     }
 }
 
-pub fn interrupt(regs: &mut CPURegisters, interrupt_vector: u16, cycle: usize) -> BusMessage {
+pub fn interrupt(s: &mut CpuState, interrupt_vector: u16, cycle: usize) -> BusMessage {
     match cycle {
         x if x < 3 => Nop,
-        3 => Write{addr: 0x100 | regs.sp as u16, data: (regs.pc >> 8) as u8}, // push PC high byte to stack
+        3 => Write{addr: 0x100 | s.regs.sp as u16, data: (s.regs.pc >> 8) as u8}, // push PC high byte to stack
         4 => {
-            regs.sp = regs.sp.wrapping_sub(1);
-            Write{addr: 0x100 | regs.sp as u16, data: regs.pc as u8} // push PC low byte to stack
+            s.regs.sp = s.regs.sp.wrapping_sub(1);
+            Write{addr: 0x100 | s.regs.sp as u16, data: s.regs.pc as u8} // push PC low byte to stack
         }
         5 => {
-            regs.sp = regs.sp.wrapping_sub(1);
-            Write{addr: 0x100 | regs.sp as u16, data: regs.status & !0x10} // push status register with B forced to 0 to stack
+            s.regs.sp = s.regs.sp.wrapping_sub(1);
+            Write{addr: 0x100 | s.regs.sp as u16, data: s.regs.status & !0x10} // push status register with B forced to 0 to stack
         }
         6 => {
-            regs.sp = regs.sp.wrapping_sub(1);
+            s.regs.sp = s.regs.sp.wrapping_sub(1);
             Read{addr: interrupt_vector} // fetch PC low byte from vector
         }
         7 => {
-            regs.pc = regs.data as u16; // set PC low byte from stack
-            regs.set_flag(CPUFlags::I, true); // set interrupt disable flag
+            s.regs.pc = s.data as u16; // set PC low byte from stack
+            s.regs.set_flag(CpuFlags::I, true); // set interrupt disable flag
             Read{addr: interrupt_vector+1} // fetch PC high byte from vector
         }
         8 => {
-            regs.pc |= (regs.data as u16) << 8; // set PC high byte from stack
-            Read{addr: regs.pc} // issue fetch for next opcode
+            s.regs.pc |= (s.data as u16) << 8; // set PC high byte from stack
+            Read{addr: s.regs.pc} // issue fetch for next opcode
         }
         _ => panic!("Impossible cycle count in match, interrupt handling takes 8 cycles")
     }

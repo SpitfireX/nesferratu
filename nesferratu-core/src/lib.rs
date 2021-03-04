@@ -15,7 +15,7 @@ pub enum BusMessage {
 
 pub struct Bus {
     fetch: Option<u8>,
-    cpu: CPUInterpreter,
+    cpu: CpuInterpreter,
     memory: Ram,
     cartridge: Cartridge,
 }
@@ -25,7 +25,7 @@ impl Bus {
     pub fn new(cartridge: Cartridge) -> Bus {
         let mut temp = Bus {
             fetch: None,
-            cpu: CPUInterpreter::new(),
+            cpu: CpuInterpreter::new(),
             memory: Ram::new(),
             cartridge,
         };
