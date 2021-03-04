@@ -1,11 +1,11 @@
 pub mod mappers;
 
-use mappers::{Mapper, MappedAddress};
+use mappers::{Mapper, MappedCpuAddress};
 
 use std::{io::{Result as IoResult, Read, Error, ErrorKind}, path::Path};
 use std::fs::File;
 
-use crate::BusDevice;
+use crate::CpuBusDevice;
 
 // iNES / NES2.0 header
 pub struct Header {
@@ -154,40 +154,28 @@ impl Cartridge {
     } 
 }
 
-impl BusDevice for Cartridge {
-    fn read(&self, addr: u16) -> u8 {
+impl CpuBusDevice for Cartridge {
+    fn cpu_read(&self, addr: u16) -> u8 {
         match self.mapper.map_cpu(&self.header, addr) {
-            MappedAddress::ChrRam(_) => {
+            MappedCpuAddress::PrgRam(_) => {
                 panic!("The fuck is a cartridge RAM?");
             }
-            MappedAddress::ChrRom(_) => {
-                panic!("This should not be happening aaAAaaaaAA spaghet");
-            }
-            MappedAddress::PrgRam(_) => {
-                panic!("The fuck is a cartridge RAM?");
-            }
-            MappedAddress::PrgRom(addr) => {
+            MappedCpuAddress::PrgRom(addr) => {
                 self.prg_rom[addr as usize]
             }
-            MappedAddress::None => 0x00,
+            MappedCpuAddress::None => 0x00,
         }
     }
 
-    fn write(&mut self, addr: u16, data: u8) {
+    fn cpu_write(&mut self, addr: u16, data: u8) {
         match self.mapper.map_cpu(&self.header, addr) {
-            MappedAddress::ChrRam(_) => {
+            MappedCpuAddress::PrgRam(_) => {
                 panic!("The fuck is a cartridge RAM?");
             }
-            MappedAddress::ChrRom(_) => {
-                panic!("This should not be happening aaAAaaaaAA spaghet");
-            }
-            MappedAddress::PrgRam(_) => {
-                panic!("The fuck is a cartridge RAM?");
-            }
-            MappedAddress::PrgRom(addr) => {
+            MappedCpuAddress::PrgRom(addr) => {
                 self.prg_rom[addr as usize] = data;
             }
-            MappedAddress::None => {},
+            MappedCpuAddress::None => {},
         }
     }
 }

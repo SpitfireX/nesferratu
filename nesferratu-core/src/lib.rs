@@ -67,7 +67,7 @@ impl Bus {
         match addr {
             // $0000-$1FFF RAM, 2KB mirrored 4 times
             addr if addr < 0x2000 => {
-                Some(self.memory.read(addr % 0x800))
+                Some(self.memory.cpu_read(addr % 0x800))
             }
             // $2000-$3FFF PPU registers, 8 byte mirrored several times
             addr if addr < 0x4000 => {
@@ -84,7 +84,7 @@ impl Bus {
             }
             // $4020-$FFFF Cartridge
             _ => {
-                Some(self.cartridge.read(addr))
+                Some(self.cartridge.cpu_read(addr))
             }
         }
     }
@@ -93,7 +93,7 @@ impl Bus {
         match addr {
             // $0000-$1FFF RAM, 2KB mirrored 4 times
             addr if addr < 0x2000 => {
-                self.memory.write(addr % 0x800, data);
+                self.memory.cpu_write(addr % 0x800, data);
             }
             // $2000-$3FFF PPU registers, 8 byte mirrored several times
             addr if addr < 0x4000 => {
@@ -109,16 +109,20 @@ impl Bus {
             }
             // $4020-$FFFF Cartridge
             _ => {
-                self.cartridge.write(addr, data);
+                self.cartridge.cpu_write(addr, data);
             }
         }
     }
 }
 
-trait BusDevice {
-    fn read(&self, addr: u16) -> u8;
+trait CpuBusDevice {
+    fn cpu_read(&self, addr: u16) -> u8;
+    fn cpu_write(&mut self, addr: u16, data: u8);
+}
 
-    fn write(&mut self, addr: u16, data: u8);
+trait PpuBusDevice {
+    fn ppu_read(&self, addr: u16) -> u8;
+    fn ppu_write(&mut self, addr: u16, data: u8);
 }
 
 struct Ram {
@@ -183,13 +187,13 @@ impl Ram {
     }
 }
 
-impl BusDevice for Ram {
+impl CpuBusDevice for Ram {
 
-    fn read(&self, addr: u16) -> u8 {
+    fn cpu_read(&self, addr: u16) -> u8 {
         self.ram[addr as usize]
     }
 
-    fn write(&mut self, addr: u16, data: u8) {
+    fn cpu_write(&mut self, addr: u16, data: u8) {
         self.ram[addr as usize] = data;
     }
 }
