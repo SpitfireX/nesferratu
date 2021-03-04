@@ -3,6 +3,7 @@ extern crate num_derive;
 use cpu::{CPU, CPUInterpreter};
 
 pub mod cpu;
+pub mod cartridge;
 
 #[derive(Debug)]
 pub enum BusMessage {

@@ -11,9 +11,13 @@ fn main() {
         .version("0.1-turboalpha")
         .author("SpitfireX")
         .about("Tries (and and by try i mean it really tries its best) to emulate a NES.")
-        .arg(Arg::with_name("step")
-            .short("s")
-            .help("If set the emulator starts in manual cycle step mode"))
+        .arg(Arg::with_name("debug")
+            .short("d")
+            .help("If set the emulator starts in debugging mode"))
+        .arg(Arg::with_name("ROM")
+            .required(true)
+            .index(1)
+            .help("The ROM file to load"))
         .get_matches();
     
         println!("{:?}", matches);
