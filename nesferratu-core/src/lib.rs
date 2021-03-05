@@ -58,16 +58,18 @@ impl Bus {
             }
             // $2000-$3FFF PPU registers, 8 byte mirrored several times
             addr if addr < 0x4000 => {
-                // panic!("PPU not implemented yet");
+                println!("PPU not implemented yet (read {:#04X})", addr);
                 Some(0)
             }
             // $4000-$4017 APU / IO
             addr if addr < 0x4018 => {
-                panic!("APU and IO not implemented yet");
+                println!("APU and IO not implemented yet (read {:#04X})", addr);
+                Some(0)
             }
             // $4018-$401F CPU Test Mode stuff
             addr if addr < 0x4020 => {
-                panic!("CPU Test Mode stuff not implemented yet");
+                println!("CPU Test Mode stuff not implemented yet (read {:#04X})", addr);
+                Some(0)
             }
             // $4020-$FFFF Cartridge
             _ => {
@@ -84,15 +86,15 @@ impl Bus {
             }
             // $2000-$3FFF PPU registers, 8 byte mirrored several times
             addr if addr < 0x4000 => {
-                panic!("PPU not implemented yet");
+                println!("PPU not implemented yet (write {:#04X}, {:#02X})", addr, data);
             }
             // $4000-$4017 APU / IO
             addr if addr < 0x4018 => {
-                panic!("APU and IO not implemented yet");
+                println!("APU and IO not implemented yet (write {:#04X}, {:#02X})", addr, data);
             }
             // $4018-$401F CPU Test Mode stuff
             addr if addr < 0x4020 => {
-                panic!("CPU Test Mode stuff not implemented yet");
+                println!("CPU Test Mode stuff not implemented (write {:#04X}, {:#02X})", addr, data);
             }
             // $4020-$FFFF Cartridge
             _ => {
