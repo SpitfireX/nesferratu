@@ -4,7 +4,7 @@ use clap::{Arg, App};
 use std::io;
 use std::io::Result as IoResult;
 
-use nesferratu_core::Bus;
+use nesferratu_core::Emulator;
 use nesferratu_core::cartridge::Cartridge;
 use nesferratu_core::debugger;
 
@@ -40,7 +40,7 @@ fn main() {
         }
     }
 
-    let mut emu = Bus::new(cartridge);
+    let mut emu = Emulator::new(cartridge);
     
     if cli_args.is_present("debugger") {
 

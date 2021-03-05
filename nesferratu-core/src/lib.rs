@@ -15,17 +15,17 @@ pub enum BusMessage {
     Nop,
 }
 
-pub struct Bus {
+pub struct Emulator {
     fetch: Option<u8>,
     cpu: CpuInterpreter,
     memory: Ram,
     cartridge: Cartridge,
 }
 
-impl Bus {
+impl Emulator {
 
-    pub fn new(cartridge: Cartridge) -> Bus {
-        let mut temp = Bus {
+    pub fn new(cartridge: Cartridge) -> Emulator {
+        let mut temp = Emulator {
             fetch: None,
             cpu: CpuInterpreter::new(),
             memory: Ram::new(),

@@ -1,6 +1,6 @@
 use std::io;
 
-use crate::{Bus, cpu::{CpuRegisters, EmulationState}};
+use crate::{Emulator, cpu::{CpuRegisters, EmulationState}};
 use crate::cpu::instructions::{Instruction, Operand};
 
 pub trait CpuDebugger {
@@ -16,12 +16,12 @@ pub trait MemDebugger {
 }
 
 pub struct Debugger {
-    emu: Bus,
+    emu: Emulator,
 }
 
 impl Debugger {
 
-    pub fn new(emu: Bus) -> Debugger {
+    pub fn new(emu: Emulator) -> Debugger {
         Debugger {
             emu
         }
