@@ -151,10 +151,8 @@ impl CPU for CpuInterpreter {
         self.emu_state.instruction_done = false;
         self.emu_state.total_cycles += 1;
         self.emu_state.op_cycle += 1;
-        self.print_debug();
 
         if let Some(data) = data {
-            println!("\tbus data 0x{:02X}", data);
             self.cpu_state.data = data;
         }
 
@@ -288,8 +286,6 @@ impl CPU for CpuInterpreter {
     }
 
     fn reset(&mut self) {
-        println!("CPU reset");
-
         // zero internal interpreter state
         self.emu_state = EmulationState::default();
         self.addr_cycle = 0;

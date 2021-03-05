@@ -341,7 +341,6 @@ pub fn bne_address(s: &mut CpuState, address: u16, cycle: u8) -> BusMessage {
                 s.extra_cycle = true;
             }
 
-            println!("new address after branch: {:04X}", address);
             s.regs.pc = address;
             
             Nop
@@ -534,7 +533,6 @@ pub fn bmi_address(s: &mut CpuState, address: u16, cycle: u8) -> BusMessage {
                 s.extra_cycle = true;
             }
 
-            println!("new address after branch: {:04X}", address);
             s.regs.pc = address;
             
             Nop
@@ -614,7 +612,6 @@ pub fn bvs_address(s: &mut CpuState, address: u16, cycle: u8) -> BusMessage {
                 s.extra_cycle = true;
             }
 
-            println!("new address after branch: {:04X}", address);
             s.regs.pc = address;
             
             Nop
@@ -753,7 +750,6 @@ pub fn beq_address(s: &mut CpuState, address: u16, cycle: u8) -> BusMessage {
                 s.extra_cycle = true;
             }
 
-            println!("new address after branch: {:04X}", address);
             s.regs.pc = address;
             
             Nop
@@ -837,7 +833,6 @@ pub fn bcs_address(s: &mut CpuState, address: u16, cycle: u8) -> BusMessage {
                 s.extra_cycle = true;
             }
 
-            println!("new address after branch: {:04X}", address);
             s.regs.pc = address;
             
             Nop
@@ -988,7 +983,6 @@ pub fn bpl_address(s: &mut CpuState, address: u16, cycle: u8) -> BusMessage {
                 s.extra_cycle = true;
             }
 
-            println!("new address after branch: {:04X}", address);
             s.regs.pc = address;
             
             Nop
@@ -1037,7 +1031,6 @@ pub fn bvc_address(s: &mut CpuState, address: u16, cycle: u8) -> BusMessage {
                 s.extra_cycle = true;
             }
 
-            println!("new address after branch: {:04X}", address);
             s.regs.pc = address;
             
             Nop
@@ -1060,7 +1053,6 @@ pub fn bcc_address(s: &mut CpuState, address: u16, cycle: u8) -> BusMessage {
                 s.extra_cycle = true;
             }
 
-            println!("new address after branch: {:04X}", address);
             s.regs.pc = address;
             
             Nop

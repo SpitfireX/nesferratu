@@ -48,15 +48,6 @@ impl Bus {
                 self.fetch = None;
             }
         }
-
-        // println!("Program:");
-        // self.memory.prettyprint(0x1337, 0x50);
-
-        println!("Zero Page:");
-        self.memory.prettyprint(0x0000, 0x100);
-
-        println!("Stack:");
-        self.memory.prettyprint(0x01E0, 0x20);
     }
 
     fn read_cpu(&self, addr: u16) -> Option<u8> {
