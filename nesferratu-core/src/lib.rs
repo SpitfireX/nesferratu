@@ -1,10 +1,12 @@
 extern crate num_derive;
 
-use cpu::{CPU, CPUInterpreter};
-use cartridge::Cartridge;
-
 pub mod cpu;
 pub mod cartridge;
+pub mod debugger;
+
+use cpu::{CPU, CpuInterpreter};
+use cartridge::Cartridge;
+use debugger::MemDebugger;
 
 #[derive(Debug)]
 pub enum BusMessage {
@@ -126,53 +128,13 @@ impl Ram {
     }
 }
 
-impl Ram {
-    fn prettyprint(&self, addr: u16, len: usize) {
-        let len = if len > self.ram.len() - addr as usize {
-            self.ram.len() - addr as usize
-        } else {
-            len
-        };
+impl MemDebugger for Ram {
+    fn get_mem(&self) -> &[u8] {
+        &self.ram
+    }
 
-        println!("┌──────┬─────────────────────────────────────────────────┐");
-        println!("│ RAM  │ 00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F │");
-        println!("├──────┼─────────────────────────────────────────────────┼──────────────────┐");
-        let mut col = 0;
-        let mut s = String::new();
-
-        for (i, b) in self.ram[addr as usize .. addr as usize + len].iter().enumerate() {
-            if i % 0x10 == 0 {
-                print!("│ {:04X} │ ", addr as usize + i);
-            }
-            
-            print!("{:02X} ", b);
-            
-            let c = *b as char;
-            if c.is_ascii_graphic() || c == ' ' {
-                s.push(c);
-            } else {
-                s.push('.');
-            }
-
-            col = i & 0xF;
-            if col == 0xF {
-                println!("│ {} │", s);
-                s.clear();
-            }
-        }
-
-        if col < 0xF {
-            while col < 0xF {
-                print!("   ");
-                col += 1;
-            }
-            while s.len() <= 0xF {
-                s.push(' ');
-            }
-            println!("│ {} │", s);
-        }
-
-        println!("└──────┴─────────────────────────────────────────────────┴──────────────────┘");
+    fn get_mem_mut(&mut self) -> &mut [u8] {
+        &mut self.ram
     }
 }
 
