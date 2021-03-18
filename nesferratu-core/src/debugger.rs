@@ -1,4 +1,7 @@
-use std::io;
+use rustyline::error::ReadlineError;
+use rustyline::{Editor, Result as RustylineResult};
+
+use std::{fmt::Display, io};
 
 use crate::{Emulator, cpu::{CpuRegisters, EmulationState}};
 use crate::cpu::instructions::{Instruction, Operand};
@@ -15,37 +18,97 @@ pub trait MemDebugger {
     fn get_mem_mut(&mut self) -> &mut [u8];
 }
 
+enum Arg {
+
+}
+
+type CommandDelegate = fn(d: &mut Debugger, args: &Vec<Arg>) -> bool;
+
+pub struct Command {
+    name: String,
+    delegate: CommandDelegate,
+    args: Vec<Arg>,
+}
+
+impl Command {
+    pub fn parse(input: &str) -> Result<Vec<Self>, CommandParseError> {
+        Err(CommandParseError::Loljk)
+    }
+}
+
+impl Display for Command {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.name)
+    }
+}
+
+pub enum CommandParseError {
+    Loljk
+}
+
 pub struct Debugger {
     emu: Emulator,
+    commands: Vec<Command>,
+    last_command: Option<Command>,
 }
 
 impl Debugger {
 
     pub fn new(emu: Emulator) -> Debugger {
         Debugger {
-            emu
+            emu,
+            commands: Vec::new(),
+            last_command: None,
         }
     }
 
-    pub fn add_cmd(&mut self, cmd: &str) {
-        
+    pub fn add_cmds(&mut self, cmds: Vec<Command>) {
+        self.commands.extend(cmds);
     }
 
     pub fn run(&mut self) {
+        let mut rl = Editor::<()>::new();
+        
+        if rl.load_history("debugger_history.txt").is_err() {
+            println!("No previous history.");
+        }
+        
         loop {
-            if self.step() {
-                self.emu.clock();
+            if self.commands.len() > 0 {
+
             } else {
-                break;
+                match rl.readline(&self.format_prompt()) {
+                    Ok(line) => {
+                        rl.add_history_entry(line.as_str());
+                            match Command::parse(&line) {
+                            Ok(cmds) => {
+                                self.add_cmds(cmds);
+                            }
+                            Err(_) => eprintln!("Could not parse command \"{}\"", line),
+                        }
+                    },
+                    Err(ReadlineError::Interrupted) => {
+                        break;
+                    },
+                    Err(ReadlineError::Eof) => {
+                        break;
+                    },
+                    Err(err) => {
+                        println!("Readline Error: {:?}, exiting", err);
+                        break;
+                    }
+                }
             }
         }
+        
+        rl.save_history("debugger_history.txt").unwrap();
     }
 
-    fn step(&mut self) -> bool {
-        let mut input = String::new();
-        io::stdin().read_line(&mut input);
-        println!();
-        true
+    fn format_prompt(&mut self) -> String {
+        match self.last_command.as_ref() {
+            Some(cmd) => format!("[{}] >> ", cmd),
+            None => String::from(">> "),
+        }
     }
 }
 

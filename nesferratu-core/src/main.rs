@@ -1,12 +1,10 @@
 extern crate clap;
 use clap::{Arg, App};
 
-use std::io;
-use std::io::Result as IoResult;
-
 use nesferratu_core::Emulator;
 use nesferratu_core::cartridge::Cartridge;
 use nesferratu_core::debugger;
+use nesferratu_core::debugger::Command;
 
 fn main() {
 
@@ -46,7 +44,10 @@ fn main() {
 
         let mut debugger = debugger::Debugger::new(emu);
         if let Some(cmd) = cli_args.value_of("cmd") {
-            debugger.add_cmd(cmd);
+            match Command::parse(cmd) {
+                Ok(cmds) => debugger.add_cmds(cmds),
+                Err(_) => eprintln!("Could not parse initial debbugger command"),
+            }
         }
 
         debugger.run();
