@@ -1,7 +1,8 @@
 use rustyline::error::ReadlineError;
-use rustyline::{Editor, Result as RustylineResult};
+use rustyline::Editor;
+use regex::Regex;
 
-use std::{fmt::Display, io};
+use std::fmt::Display;
 
 use crate::{Emulator, cpu::{CpuRegisters, EmulationState}};
 use crate::cpu::instructions::{Instruction, Operand};
@@ -18,32 +19,120 @@ pub trait MemDebugger {
     fn get_mem_mut(&mut self) -> &mut [u8];
 }
 
-enum Arg {
+lazy_static! {
+    static ref CMD_REGEXES: Vec<(CommandDelegate, Regex, usize)> = vec![
+        (commands::cycle, Regex::new(r"c(?:ycle)?").unwrap(), 1),
+        (commands::step, Regex::new(r"s(?:tep)?").unwrap(), 1),
+    ];
 
+    static ref ARG_UINT: Regex = Regex::new(r"\d+").unwrap();
 }
 
-type CommandDelegate = fn(d: &mut Debugger, args: &Vec<Arg>) -> bool;
+#[derive(Debug, Clone)]
+pub enum Arg {
+    UInt(u32),
+    String(String),
+}
+
+impl Arg {
+    fn parse(s: &str) -> Option<Self> {
+        match s {
+            s if ARG_UINT.is_match(s) => {
+                match s.parse() {
+                    Ok(i) => Some(Self::UInt(i)),
+                    Err(_) => None,
+                }
+            },
+
+            _ => Some(Self::String(s.to_owned())),
+        }
+    }
+}
+
+impl Display for Arg {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Arg::UInt(i) => write!(f, "{}", i),
+            Arg::String(s) => write!(f, "{}", s)
+        }
+    }
+}
+
+type CommandDelegate = fn(d: &mut Debugger, args: &Vec<Arg>) -> Result<(), CommandRunError>;
+
+pub enum CommandParseError {
+    EmptyInput,
+    UnknownCommand,
+    InvalidArgument(usize), // index of invalid argument
+    InvalidArgumentNum(usize, usize), // expected number, actual number
+}
+
+pub enum CommandRunError {
+    InvalidArgumentType(usize, Arg, Arg), // index of invalid argument, expected type, actual type
+}
 
 pub struct Command {
-    name: String,
+    cmd: String,
     delegate: CommandDelegate,
     args: Vec<Arg>,
 }
 
 impl Command {
-    pub fn parse(input: &str) -> Result<Vec<Self>, CommandParseError> {
-        Err(CommandParseError::Loljk)
+    pub fn parse(mut input: &str) -> Result<Vec<Self>, CommandParseError> {
+
+        if input.len() == 0 {
+            return Err(CommandParseError::EmptyInput);
+        }
+
+        let mut cmd: Option<Command> = None;
+        let mut argnum = 0;
+        
+        for (delegate, regex, num) in CMD_REGEXES.iter() {
+
+            if let Some(m) = regex.find(input) {
+                input = &input[m.end()..];
+                
+                argnum = *num;
+                cmd = Some(Command {
+                    cmd: m.as_str().to_owned(),
+                    delegate: *delegate,
+                    args: Vec::new(),
+                });
+                break;
+            }
+        }
+
+        match cmd {
+            None => Err(CommandParseError::UnknownCommand),
+            Some(mut cmd) => {
+
+                for (i, token) in input.split_ascii_whitespace().enumerate() {
+
+                    if i < argnum {
+                        if let Some(arg) = Arg::parse(token) {
+                            cmd.args.push(arg);
+                        } else {
+                            return Err(CommandParseError::InvalidArgument(i));
+                        }
+                    } else {
+                        return Err(CommandParseError::InvalidArgumentNum(argnum, i+1));
+                    }
+                }
+
+                Ok(vec!(cmd))
+            }
+        }
     }
 }
 
 impl Display for Command {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.name)
+        write!(f, "{}", self.cmd);
+        for arg in &self.args {
+            write!(f, " {}", arg);
+        }
+        Ok(())
     }
-}
-
-pub enum CommandParseError {
-    Loljk
 }
 
 pub struct Debugger {
@@ -75,6 +164,20 @@ impl Debugger {
         
         loop {
             if self.commands.len() > 0 {
+                let cmd = self.commands.pop().unwrap();
+                
+                // run actual debugger command
+                match (cmd.delegate)(self, &cmd.args) {
+                    Ok(_) => {
+                        self.last_command = Some(cmd);
+                    }
+                    Err(e) => {
+                        eprintln!("Could not run command \"{}\"", cmd);
+                        match e {
+                            CommandRunError::InvalidArgumentType(i, exp, got) => eprintln!("Invalid argument type at position {}, expected {:?}, got {:?}", i+1, exp, got),
+                        }
+                    }
+                }
 
             } else {
                 match rl.readline(&self.format_prompt()) {
@@ -84,7 +187,19 @@ impl Debugger {
                             Ok(cmds) => {
                                 self.add_cmds(cmds);
                             }
-                            Err(_) => eprintln!("Could not parse command \"{}\"", line),
+                            Err(e) => {
+                                match e {
+                                    // put last command back into the queue when no new command is given
+                                    CommandParseError::EmptyInput => {
+                                        if let Some(cmd) = self.last_command.take() {
+                                            self.commands.push(cmd);
+                                        }
+                                    },
+                                    CommandParseError::UnknownCommand => eprintln!("Unknown command"),
+                                    CommandParseError::InvalidArgument(i) => eprintln!("Invalid argument at position {}", i+1),
+                                    CommandParseError::InvalidArgumentNum(exp, got) => eprintln!("Invalid number of arguments: expected {}, got {}", exp, got),
+                                }
+                            }
                         }
                     },
                     Err(ReadlineError::Interrupted) => {
@@ -112,7 +227,33 @@ impl Debugger {
     }
 }
 
+mod commands {
+    use crate::debugger::{Debugger, Arg, CommandRunError};
 
+    pub fn cycle(d: &mut Debugger, args: &Vec<Arg>) -> Result<(), CommandRunError> {
+        let cycles;
+
+        if args.len() == 0 {
+            cycles = 1;
+        } else {
+            if let Arg::UInt(i) = args[0] {
+                cycles = i;
+            } else {
+                return Err(CommandRunError::InvalidArgumentType(0, Arg::UInt(0), args[0].clone()));
+            }
+        }
+
+        for _ in 0..cycles {
+            d.emu.clock();
+        }
+
+        Ok(())
+    }
+
+    pub fn step(d: &mut Debugger, args: &Vec<Arg>) -> Result<(), CommandRunError> {
+        Ok(())
+    }
+}
 
 pub fn hex_print(bytes: &[u8], start: usize, len: usize, title_text: Option<&str>) {
     let len = if len > bytes.len() - start as usize {
