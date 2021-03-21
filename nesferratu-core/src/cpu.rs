@@ -4,6 +4,7 @@ pub mod instructions;
 use num_traits::FromPrimitive;
 use instructions::{AddrDelegateReturn, Instruction, Opcode, Operand};
 use crate::BusMessage;
+use crate::debugger::CpuDebugger;
 
 pub trait CPU {
     fn clock(&mut self, data: Option<u8>) -> BusMessage;
@@ -36,7 +37,7 @@ enum CpuInterpreterState {
 }
 
 #[derive(Debug, PartialEq)]
-enum Interrupt {
+pub enum Interrupt {
     None,
     Irq(u16),
     Nmi(u16),
@@ -58,12 +59,12 @@ pub struct CpuState {
 
 #[derive(Default, Debug)]
 pub struct CpuRegisters {
-    a: u8,      // Accumulator
-    x: u8,      // X Register
-    y: u8,      // Y Register
-    sp: u8,     // Stack Pointer
-    pc: u16,    // Program Counter
-    status: u8, // Status Register
+    pub a: u8,      // Accumulator
+    pub x: u8,      // X Register
+    pub y: u8,      // Y Register
+    pub sp: u8,     // Stack Pointer
+    pub pc: u16,    // Program Counter
+    pub status: u8, // Status Register
 }
 
 impl CpuRegisters {
@@ -81,11 +82,11 @@ impl CpuRegisters {
 }
 
 pub struct EmulationState {
-    total_cycles: u64,
-    op_cycle: u8,
-    additional_cycles: u8,
-    instruction_done: bool,
-    interrupt_request: Interrupt,
+    pub total_cycles: u64,
+    pub op_cycle: u8,
+    pub additional_cycles: u8,
+    pub instruction_done: bool,
+    pub interrupt_request: Interrupt,
 }
 
 impl Default for EmulationState {
@@ -300,5 +301,27 @@ impl CPU for CpuInterpreter {
         self.exec_state = CpuInterpreterState::Execute;
         self.operand = Some(Operand::Address(0xFFFC));
         self.instruction = Some(&instructions::RESET_INSTRUCTION);
+    }
+}
+
+impl CpuDebugger for CpuInterpreter {
+    fn get_cpu_regs(&self) -> &CpuRegisters {
+        &self.cpu_state.regs
+    }
+
+    fn get_cup_regs_mut(&mut self) -> Option<&mut CpuRegisters> {
+        if self.emu_state.instruction_done {
+            Some(&mut self.cpu_state.regs)
+        } else {
+            None
+        }
+    }
+
+    fn get_emulation_state(&self) -> &EmulationState {
+        &self.emu_state
+    }
+
+    fn get_instruction(&self) -> (Option<&Instruction>, Option<&Operand>) {
+        (self.instruction, self.operand.as_ref())
     }
 }
