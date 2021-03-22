@@ -67,8 +67,8 @@ type CommandDelegate = fn(d: &mut Debugger, args: &Vec<Arg>) -> Result<(), Comma
 pub enum CommandParseError {
     EmptyInput,
     UnknownCommand,
-    InvalidArgument(usize), // index of invalid argument
-    InvalidArgumentNum(usize, usize), // expected number, actual number
+    InvalidArgument{index: usize}, // index of invalid argument
+    InvalidArgumentNum{expected: usize, got: usize}, // expected number, actual number
 }
 
 pub enum CommandRunError {
@@ -116,10 +116,10 @@ impl Command {
                         if let Some(arg) = Arg::parse(token) {
                             cmd.args.push(arg);
                         } else {
-                            return Err(CommandParseError::InvalidArgument(i));
+                            return Err(CommandParseError::InvalidArgument{index: i});
                         }
                     } else {
-                        return Err(CommandParseError::InvalidArgumentNum(argnum, i+1));
+                        return Err(CommandParseError::InvalidArgumentNum{expected: argnum, got: i+1});
                     }
                 }
 
@@ -211,8 +211,8 @@ impl Debugger {
                                         }
                                     },
                                     CommandParseError::UnknownCommand => eprintln!("Unknown command"),
-                                    CommandParseError::InvalidArgument(i) => eprintln!("Invalid argument at position {}", i+1),
-                                    CommandParseError::InvalidArgumentNum(exp, got) => eprintln!("Invalid number of arguments: expected {}, got {}", exp, got),
+                                    CommandParseError::InvalidArgument{ index } => eprintln!("Invalid argument at position {}", index+1),
+                                    CommandParseError::InvalidArgumentNum{ expected, got } => eprintln!("Invalid number of arguments: expected {}, got {}", expected, got),
                                 }
                             }
                         }
