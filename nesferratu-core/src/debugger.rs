@@ -228,7 +228,7 @@ impl Debugger {
 }
 
 mod commands {
-    use crate::debugger::{Debugger, Arg, CommandRunError};
+    use crate::debugger::{Debugger, Arg, CommandRunError, CpuDebugger};
 
     pub fn cycle(d: &mut Debugger, args: &Vec<Arg>) -> Result<(), CommandRunError> {
         let cycles;
@@ -251,6 +251,26 @@ mod commands {
     }
 
     pub fn step(d: &mut Debugger, args: &Vec<Arg>) -> Result<(), CommandRunError> {
+        let steps;
+
+        if args.len() == 0 {
+            steps = 1;
+        } else {
+            if let Arg::UInt(i) = args[0] {
+                steps = i;
+            } else {
+                return Err(CommandRunError::InvalidArgumentType(0, Arg::UInt(0), args[0].clone()));
+            }
+        }
+
+        for _ in 0..steps {
+            d.emu.clock();
+
+            while !d.emu.cpu.get_emulation_state().instruction_done {
+                d.emu.clock();
+            }
+        }
+
         Ok(())
     }
 }
