@@ -59,26 +59,27 @@ adrs = {
     '(ind), y+': 'ind_y_extra',
 }
 
+full_adrs = {
+    'accum': 'Accum',
+    'imm': 'IMM',
+    'abs': 'Absolute',
+    'zp': 'ZP',
+    'zp, x': 'ZP, X',
+    'zp, y': 'ZP, Y',
+    'abs, x': 'ABS, X',
+    'abs, y': 'ABS, Y',
+    'implied': 'Implied',
+    'relative': 'Relative',
+    '(ind, x)': '(IND, X)',
+    '(ind), y': '(IND), Y',
+    'indirect': 'Indirect',
+}
+
 def addrname(addr):
     return adrs[addr]
 
 def fulladdrname(addr):
-    adrs = {
-        'accum': 'Accum',
-        'imm': 'IMM',
-        'abs': 'Absolute',
-        'zp': 'ZP',
-        'zp, x': 'ZP, X',
-        'zp, y': 'ZP, Y',
-        'abs, x': 'ABS, X',
-        'abs, y': 'ABS, Y',
-        'implied': 'Implied',
-        'relative': 'Relative',
-        '(ind, x)': '(IND, X)',
-        '(ind), y': '(IND), Y',
-        'indirect': 'Indirect',
-    }
-    return adrs[addr]
+    return full_adrs[addr]
 
 def operand(addrname):
     if addrname in ['imp', 'acc']:
@@ -167,9 +168,15 @@ def create_addrfunstumps():
         
         print(fun)
 
+def create_fulladdrmatch():
+    print('match _ {')
+    for key, value in full_adrs.items():
+        print(f'    "{value}" => {{}}')
+    print(f'    _ => {{}}')
+    print('}')
 
 p=argparse.ArgumentParser()
-p.add_argument('mode', choices=['check','enum', 'opmatch', 'funstumps', 'addrfunstumps'])
+p.add_argument('mode', choices=['check','enum', 'opmatch', 'funstumps', 'addrfunstumps', 'fulladdrmatch'])
 args = p.parse_args()
 
 if args.mode == 'check':
@@ -182,3 +189,5 @@ elif args.mode == 'funstumps':
     create_funstumps(table)
 elif args.mode == 'addrfunstumps':
     create_addrfunstumps()
+elif args.mode == 'fulladdrmatch':
+    create_fulladdrmatch()

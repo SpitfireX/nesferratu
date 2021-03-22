@@ -278,8 +278,6 @@ impl CPU for CpuInterpreter {
                         // read next instruction or handle interrupt request
                         match self.emu_state.interrupt_request {
                             Interrupt::None => {
-                                self.instruction = None;
-                                self.operand = None;
                                 self.exec_state = Fetch;
                             }
                             Interrupt::Irq(interrupt_vector) => {
@@ -352,7 +350,21 @@ impl CpuDebugger for CpuInterpreter {
         &self.emu_state
     }
 
-    fn get_instruction(&self) -> (Option<&Instruction>, Option<&Operand>) {
+    fn get_decoded_instruction(&self) -> (Option<&Instruction>, Option<&Operand>) {
         (self.instruction, self.operand.as_ref())
+    }
+
+    fn get_raw_instruction(&self) -> Option<Vec<u8>> {
+        if let Some(ins) = self.instruction {
+            match ins.bytes {
+                0 => Some(Vec::new()),
+                1 => Some(vec![self.cpu_state.op]),
+                2 => Some(vec![self.cpu_state.op, self.cpu_state.o1]),
+                3 => Some(vec![self.cpu_state.op, self.cpu_state.o1, self.cpu_state.o2]),
+                _ => None,
+            }
+        } else {
+            None
+        }
     }
 }

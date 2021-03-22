@@ -14,7 +14,8 @@ pub trait CpuDebugger {
     fn get_cpu_regs(&self) -> &CpuRegisters;
     fn get_cup_regs_mut(&mut self) -> Option<&mut CpuRegisters>;
     fn get_emulation_state(&self) -> &EmulationState;
-    fn get_instruction(&self) -> (Option<&Instruction>, Option<&Operand>);
+    fn get_decoded_instruction(&self) -> (Option<&Instruction>, Option<&Operand>);
+    fn get_raw_instruction(&self) -> Option<Vec<u8>>;
 }
 
 pub trait MemDebugger {
@@ -160,6 +161,7 @@ pub struct Debugger {
     commands: VecDeque<Command>,
     last_command: Option<Command>,
     interrupted: Arc<AtomicBool>,
+    disasm_history: VecDeque<String>,
 }
 
 impl Debugger {
@@ -177,11 +179,35 @@ impl Debugger {
             commands: VecDeque::new(),
             last_command: None,
             interrupted,
+            disasm_history: VecDeque::new(),
         }
     }
 
     pub fn add_cmds(&mut self, cmds: Vec<Command>) {
         self.commands.extend(cmds);
+    }
+
+    pub fn cycle(&mut self) {
+        self.emu.clock();
+
+        if self.emu.cpu.get_emulation_state().instruction_done {
+            if self.disasm_history.len() >= 10 {
+                self.disasm_history.pop_front();
+            }
+            self.disasm_history.push_back(
+                self.disassemble(
+                    self.emu.cpu.get_decoded_instruction(),
+                self.emu.cpu.get_raw_instruction().unwrap())
+                );
+        }
+    }
+
+    pub fn step(&mut self) {
+        self.cycle();
+
+        while !self.emu.cpu.get_emulation_state().instruction_done {
+            self.cycle();
+        }
     }
 
     pub fn run(&mut self) {
@@ -259,13 +285,74 @@ impl Debugger {
 
     fn display(&self) {
         println!("{}", self.emu.cpu.get_cpu_regs());
+
+        // disassembly
+        println!("┌──────────────────────────────────────────────────────────────────┐");
+        println!("│ Disassembly                                                      │");
+        println!("├────────┬──────────┬──────────────────────────────────────────────┤");
+        for s in self.disasm_history.iter() {
+            println!("│ {:<64} │", s);
+        }
+        println!("└────────┴──────────┴──────────────────────────────────────────────┘");
+    }
+
+    pub fn disassemble(&self, (ins, op): (Option<&Instruction>, Option<&Operand>), raw: Vec<u8>) -> String {
+        let mut s = String::new();
+    
+        if let Some(ins) = ins {
+            s.push_str(&format!("{:#04X} │ ", self.emu.cpu.get_cpu_regs().pc - ins.bytes as u16));
+            
+            let mut bytes = String::new();
+            if raw.len() > 0 {
+                for b in raw.iter() {
+                    bytes.push_str(&format!("{:02X} ", b));
+                }
+
+            }
+
+            s.push_str(&format!("{:<9}│ ", bytes));
+            
+            s.push_str(ins.mnemonic);
+        
+            if let Some(op) = op {
+                match op {
+                    Operand::Implied => {}
+                    
+                    Operand::Immediate(i) => {
+                        s.push_str(&format!(" #${:02X} ({})", i, i));
+                    }
+                    
+                    Operand::Address(a) => {
+                        match ins.addressing {
+                            "Absolute" => s.push_str(&format!(" ${:04X}", a)),
+                            "ZP" => s.push_str(&format!(" ${:02X}", *a as u8)),
+                            "ZP, X" => s.push_str(&format!(" ${:02X},X", *a as u8)),
+                            "ZP, Y" => s.push_str(&format!(" ${:02X},Y", *a as u8)),
+                            "ABS, X" => s.push_str(&format!(" ${:04X},X", a)),
+                            "ABS, Y" => s.push_str(&format!(" ${:04X},Y", a)),
+                            "Relative" => {
+                                let offset = raw[1] as i8;
+                                s.push_str(&format!(" ${:02X} ({})", offset, offset));
+                                s.push_str(&format!("    ; => ${:04X}", a));
+                            }
+                            "(IND, X)" => s.push_str(&format!(" (${:04X},X)", a)),
+                            "(IND), Y" => s.push_str(&format!(" (${:04X}),Y", a)),
+                            "Indirect" => s.push_str(&format!(" (${:04X})", a)),
+                            _ => s.push_str(&format!(" ${:04X}", a)),
+                        }
+                    }
+                }
+            }
+        }
+    
+        s
     }
 }
 
 mod commands {
 use std::sync::atomic::Ordering;
 
-    use crate::debugger::{Debugger, Arg, CommandRunError, CpuDebugger};
+    use crate::debugger::{Debugger, Arg, CommandRunError};
 
     pub fn cycle(d: &mut Debugger, args: &Vec<Arg>) -> Result<(), CommandRunError> {
         let cycles;
@@ -283,7 +370,7 @@ use std::sync::atomic::Ordering;
         d.interrupted.store(false, Ordering::SeqCst);
 
         for _ in 0..cycles {
-            d.emu.clock();
+            d.cycle();
 
             if d.interrupted.load(Ordering::SeqCst){
                 break;
@@ -309,11 +396,7 @@ use std::sync::atomic::Ordering;
         d.interrupted.store(false, Ordering::SeqCst);
 
         for _ in 0..steps {
-            d.emu.clock();
-
-            while !d.emu.cpu.get_emulation_state().instruction_done {
-                d.emu.clock();
-            }
+            d.step();
 
             if d.interrupted.load(Ordering::SeqCst){
                 break;
@@ -327,7 +410,7 @@ use std::sync::atomic::Ordering;
         d.interrupted.store(false, Ordering::SeqCst);
 
         while !d.interrupted.load(Ordering::SeqCst) {
-            d.emu.clock();
+            d.cycle();
         }
 
         Ok(())
