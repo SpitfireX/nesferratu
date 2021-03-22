@@ -3,7 +3,7 @@ use rustyline::Editor;
 use regex::Regex;
 use ctrlc;
 
-use std::fmt::Display;
+use std::{collections::VecDeque, fmt::Display};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
@@ -81,51 +81,67 @@ pub struct Command {
     args: Vec<Arg>,
 }
 
-impl Command {
-    pub fn parse(mut input: &str) -> Result<Vec<Self>, CommandParseError> {
+impl std::fmt::Debug for Command {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Command")
+            .field("cmd", &self.cmd)
+            .field("args", &self.args)
+            .finish()
+    }
+}
 
+impl Command {
+    pub fn parse(input: &str) -> Result<Vec<Self>, CommandParseError> {
         if input.len() == 0 {
             return Err(CommandParseError::EmptyInput);
         }
 
-        let mut cmd: Option<Command> = None;
-        let mut argnum = 0;
-        
-        for (delegate, regex, num) in CMD_REGEXES.iter() {
+        let mut output = Vec::new();
 
-            if let Some(m) = regex.find(input) {
-                input = &input[m.end()..];
-                
-                argnum = *num;
-                cmd = Some(Command {
-                    cmd: m.as_str().to_owned(),
-                    delegate: *delegate,
-                    args: Vec::new(),
-                });
-                break;
-            }
-        }
+        for mut substr in input.split(';') {
+            substr = substr.trim();
 
-        match cmd {
-            None => Err(CommandParseError::UnknownCommand),
-            Some(mut cmd) => {
+            let mut cmd: Option<Command> = None;
+            let mut argnum = 0;
+            
+            for (delegate, regex, num) in CMD_REGEXES.iter() {
 
-                for (i, token) in input.split_ascii_whitespace().enumerate() {
-
-                    if i < argnum {
-                        if let Some(arg) = Arg::parse(token) {
-                            cmd.args.push(arg);
-                        } else {
-                            return Err(CommandParseError::InvalidArgument{index: i});
-                        }
-                    } else {
-                        return Err(CommandParseError::InvalidArgumentNum{expected: argnum, got: i+1});
-                    }
+                if let Some(m) = regex.find(substr) {
+                    substr = &substr[m.end()..];
+                    
+                    argnum = *num;
+                    cmd = Some(Command {
+                        cmd: m.as_str().to_owned(),
+                        delegate: *delegate,
+                        args: Vec::new(),
+                    });
+                    break;
                 }
+            }
 
-                Ok(vec!(cmd))
+            match cmd {
+                None => return Err(CommandParseError::UnknownCommand),
+                Some(mut cmd) => {
+
+                    for (i, token) in substr.split_ascii_whitespace().enumerate() {
+
+                        if i < argnum {
+                            if let Some(arg) = Arg::parse(token) {
+                                cmd.args.push(arg);
+                            } else {
+                                return Err(CommandParseError::InvalidArgument{index: i});
+                            }
+                        } else {
+                            return Err(CommandParseError::InvalidArgumentNum{expected: argnum, got: i+1});
+                        }
+                    }
+
+                    output.push(cmd);
+                }
             }
         }
+
+        Ok(output)
     }
 }
 
@@ -141,7 +157,7 @@ impl Display for Command {
 
 pub struct Debugger {
     emu: Emulator,
-    commands: Vec<Command>,
+    commands: VecDeque<Command>,
     last_command: Option<Command>,
     interrupted: Arc<AtomicBool>,
 }
@@ -158,7 +174,7 @@ impl Debugger {
         
         Debugger {
             emu,
-            commands: Vec::new(),
+            commands: VecDeque::new(),
             last_command: None,
             interrupted,
         }
@@ -177,7 +193,7 @@ impl Debugger {
         
         loop {
             if self.commands.len() > 0 {
-                let cmd = self.commands.pop().unwrap();
+                let cmd = self.commands.pop_front().unwrap();
                 
                 // run actual debugger command
                 match (cmd.delegate)(self, &cmd.args) {
@@ -207,7 +223,7 @@ impl Debugger {
                                     // put last command back into the queue when no new command is given
                                     CommandParseError::EmptyInput => {
                                         if let Some(cmd) = self.last_command.take() {
-                                            self.commands.push(cmd);
+                                            self.commands.push_back(cmd);
                                         }
                                     },
                                     CommandParseError::UnknownCommand => eprintln!("Unknown command"),
