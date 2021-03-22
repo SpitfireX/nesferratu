@@ -1,8 +1,11 @@
 use rustyline::error::ReadlineError;
 use rustyline::Editor;
 use regex::Regex;
+use ctrlc;
 
 use std::fmt::Display;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 
 use crate::{Emulator, cpu::{CpuRegisters, EmulationState}};
 use crate::cpu::instructions::{Instruction, Operand};
@@ -23,6 +26,7 @@ lazy_static! {
     static ref CMD_REGEXES: Vec<(CommandDelegate, Regex, usize)> = vec![
         (commands::cycle, Regex::new(r"c(?:ycle)?").unwrap(), 1),
         (commands::step, Regex::new(r"s(?:tep)?").unwrap(), 1),
+        (commands::run, Regex::new(r"r(?:un)?").unwrap(), 0),
     ];
 
     static ref ARG_UINT: Regex = Regex::new(r"\d+").unwrap();
@@ -139,15 +143,24 @@ pub struct Debugger {
     emu: Emulator,
     commands: Vec<Command>,
     last_command: Option<Command>,
+    interrupted: Arc<AtomicBool>,
 }
 
 impl Debugger {
 
     pub fn new(emu: Emulator) -> Debugger {
+        let interrupted = Arc::new(AtomicBool::new(false));
+
+        let i = interrupted.clone();
+        ctrlc::set_handler(move || {
+            i.store(true, Ordering::SeqCst);
+        }).expect("Error setting Ctrl-C handler");
+        
         Debugger {
             emu,
             commands: Vec::new(),
             last_command: None,
+            interrupted,
         }
     }
 
@@ -228,6 +241,8 @@ impl Debugger {
 }
 
 mod commands {
+use std::sync::atomic::Ordering;
+
     use crate::debugger::{Debugger, Arg, CommandRunError, CpuDebugger};
 
     pub fn cycle(d: &mut Debugger, args: &Vec<Arg>) -> Result<(), CommandRunError> {
@@ -243,8 +258,14 @@ mod commands {
             }
         }
 
+        d.interrupted.store(false, Ordering::SeqCst);
+
         for _ in 0..cycles {
             d.emu.clock();
+
+            if d.interrupted.load(Ordering::SeqCst){
+                break;
+            }
         }
 
         Ok(())
@@ -263,12 +284,28 @@ mod commands {
             }
         }
 
+        d.interrupted.store(false, Ordering::SeqCst);
+
         for _ in 0..steps {
             d.emu.clock();
 
             while !d.emu.cpu.get_emulation_state().instruction_done {
                 d.emu.clock();
             }
+
+            if d.interrupted.load(Ordering::SeqCst){
+                break;
+            }
+        }
+
+        Ok(())
+    }
+
+    pub fn run(d: &mut Debugger, _args: &Vec<Arg>) -> Result<(), CommandRunError> {
+        d.interrupted.store(false, Ordering::SeqCst);
+
+        while !d.interrupted.load(Ordering::SeqCst) {
+            d.emu.clock();
         }
 
         Ok(())
