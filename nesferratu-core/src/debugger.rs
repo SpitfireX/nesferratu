@@ -131,9 +131,9 @@ impl Command {
 
 impl Display for Command {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.cmd);
+        write!(f, "{}", self.cmd)?;
         for arg in &self.args {
-            write!(f, " {}", arg);
+            write!(f, " {}", arg)?;
         }
         Ok(())
     }
@@ -193,6 +193,8 @@ impl Debugger {
                 }
 
             } else {
+                self.display();
+
                 match rl.readline(&self.format_prompt()) {
                     Ok(line) => {
                         rl.add_history_entry(line.as_str());
@@ -237,6 +239,10 @@ impl Debugger {
             Some(cmd) => format!("[{}] >> ", cmd),
             None => String::from(">> "),
         }
+    }
+
+    fn display(&self) {
+        println!("{}", self.emu.cpu.get_cpu_regs());
     }
 }
 

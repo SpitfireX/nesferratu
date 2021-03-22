@@ -1,6 +1,8 @@
 #[allow(unused_variables)]
 pub mod instructions;
 
+use std::fmt::Display;
+
 use num_traits::FromPrimitive;
 use instructions::{AddrDelegateReturn, Instruction, Opcode, Operand};
 use crate::BusMessage;
@@ -78,6 +80,35 @@ impl CpuRegisters {
         } else {
             self.status &= !(flag as u8);
         }
+    }
+}
+
+impl Display for CpuRegisters {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let pc = format!("({})", self.pc);
+        let sp = format!("({})", self.sp);
+        let a = format!("({})", self.a);
+        let x = format!("({})", self.x);
+        let y = format!("({})", self.y);
+        
+        let mut bullets = String::new();
+        
+        for i in 0..8 {
+            if i == 2 {
+                bullets.push('-'); 
+            } else if self.status >> i & 1 == 1 {
+                bullets.push('●');
+            } else {
+                bullets.push('○');
+            }
+        }
+
+        writeln!(f, "┌──────┬────────────────────────┬────────────────┬─────────────────┐")?;
+        writeln!(f, "│ CPU  │ PC: 0x{:04X}     {:>7} │ SP: 0x{:02X} {:>5} │ Flags: NV-BDIZC │", self.pc, pc, self.sp, sp)?;
+        writeln!(f, "├──────┴────────┬───────────────┼────────────────┤        {} │", bullets)?;
+        writeln!(f, "│ A: 0x{:02X} {:>5} │ X: 0x{:02X} {:>5} │  Y: 0x{:02X} {:>5} │        {:08b} │", self.a, a, self.x, x, self.y, y, self.status)?;
+        write!(f, "└───────────────┴───────────────┴────────────────┴─────────────────┘")?;
+        Ok(())
     }
 }
 
